@@ -5,9 +5,19 @@ const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Rate limiting configuration
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Limit each IP to 10 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Middleware
 app.use(cors());
@@ -56,7 +66,7 @@ const upload = multer({
 app.use('/uploads', express.static(uploadsDir));
 
 // API endpoint to handle file uploads and compliance check
-app.post('/api/check-compliance', upload.fields([
+app.post('/api/check-compliance', apiLimiter, upload.fields([
   { name: 'images', maxCount: 10 },
   { name: 'pdf', maxCount: 1 }
 ]), async (req, res) => {
