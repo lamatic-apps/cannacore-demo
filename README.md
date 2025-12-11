@@ -44,9 +44,12 @@ A web application for checking cannabis product compliance by uploading product 
    cp .env.example .env
    ```
    
-   Edit the `.env` file and add your Lamatic API key:
+   Edit the `.env` file and configure your Lamatic API settings:
    ```
    LAMATIC_API_KEY=your_api_key_here
+   LAMATIC_API_URL=https://cannacore824-cannacore872.lamatic.dev/graphql
+   LAMATIC_WORKFLOW_ID=72552416-8242-4ee3-bbb8-235d7792dd63
+   LAMATIC_PROJECT_ID=d00a8d95-9196-45f3-8488-10ead508b5f5
    PORT=3000
    ```
 
@@ -83,11 +86,12 @@ A web application for checking cannabis product compliance by uploading product 
 
 ## API Configuration
 
-The application uses the Lamatic GraphQL API with the following configuration:
+The application uses the Lamatic GraphQL API. All API configuration is managed through environment variables:
 
-- **Endpoint**: `https://cannacore824-cannacore872.lamatic.dev/graphql`
-- **Workflow ID**: `72552416-8242-4ee3-bbb8-235d7792dd63`
-- **Project ID**: `d00a8d95-9196-45f3-8488-10ead508b5f5`
+- **LAMATIC_API_KEY**: Your Lamatic API authentication key
+- **LAMATIC_API_URL**: The GraphQL endpoint URL (default: `https://cannacore824-cannacore872.lamatic.dev/graphql`)
+- **LAMATIC_WORKFLOW_ID**: The workflow identifier (default: `72552416-8242-4ee3-bbb8-235d7792dd63`)
+- **LAMATIC_PROJECT_ID**: The project identifier (default: `d00a8d95-9196-45f3-8488-10ead508b5f5`)
 
 ## File Structure
 

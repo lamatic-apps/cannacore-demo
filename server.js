@@ -81,10 +81,19 @@ app.post('/api/check-compliance', upload.fields([
 
     // Prepare Lamatic API request
     const lamatic_api_key = process.env.LAMATIC_API_KEY;
+    const lamatic_api_url = process.env.LAMATIC_API_URL;
+    const lamatic_workflow_id = process.env.LAMATIC_WORKFLOW_ID;
+    const lamatic_project_id = process.env.LAMATIC_PROJECT_ID;
 
     if (!lamatic_api_key) {
       return res.status(500).json({
         error: 'LAMATIC_API_KEY is not configured'
+      });
+    }
+
+    if (!lamatic_api_url || !lamatic_workflow_id || !lamatic_project_id) {
+      return res.status(500).json({
+        error: 'Lamatic API configuration is incomplete. Please check environment variables.'
       });
     }
 
@@ -107,18 +116,18 @@ app.post('/api/check-compliance', upload.fields([
       }`;
 
     const variables = {
-      "workflowId": "72552416-8242-4ee3-bbb8-235d7792dd63",
+      "workflowId": lamatic_workflow_id,
       "imageurl": imageUrls,
       "coaurl": pdfUrl
     };
 
     const options = {
       method: 'POST',
-      url: 'https://cannacore824-cannacore872.lamatic.dev/graphql',
+      url: lamatic_api_url,
       headers: {
         Authorization: `Bearer ${lamatic_api_key}`,
         'Content-Type': 'application/json',
-        'x-project-id': 'd00a8d95-9196-45f3-8488-10ead508b5f5',
+        'x-project-id': lamatic_project_id,
       },
       data: { query, variables }
     };
