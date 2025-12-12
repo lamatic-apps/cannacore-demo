@@ -198,7 +198,7 @@ uploadForm.addEventListener('submit', async (e) => {
     formData.append('pdf', selectedPdf);
 
     // Show loading state
-    uploadForm.style.display = 'none';
+    if (uploadForm) uploadForm.style.display = 'none';
     if (loadingState) loadingState.style.display = 'block';
     if (resultsSection) resultsSection.style.display = 'none';
     if (errorSection) errorSection.style.display = 'none';
@@ -233,7 +233,7 @@ uploadForm.addEventListener('submit', async (e) => {
         console.error('Error:', error);
         showError(error.message || 'An error occurred while checking compliance. Please try again.');
         if (loadingState) loadingState.style.display = 'none';
-        uploadForm.style.display = 'block';
+        if (uploadForm) uploadForm.style.display = 'block';
     }
 });
 
