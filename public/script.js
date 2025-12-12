@@ -198,10 +198,10 @@ uploadForm.addEventListener('submit', async (e) => {
     formData.append('pdf', selectedPdf);
 
     // Show loading state
-    uploadForm.style.display = 'none';
-    loadingState.style.display = 'block';
-    resultsSection.style.display = 'none';
-    errorSection.style.display = 'none';
+    if (uploadForm) uploadForm.style.display = 'none';
+    if (loadingState) loadingState.style.display = 'block';
+    if (resultsSection) resultsSection.style.display = 'none';
+    if (errorSection) errorSection.style.display = 'none';
 
     try {
         const response = await fetch('/api/check-compliance', {
@@ -232,8 +232,8 @@ uploadForm.addEventListener('submit', async (e) => {
     } catch (error) {
         console.error('Error:', error);
         showError(error.message || 'An error occurred while checking compliance. Please try again.');
-        loadingState.style.display = 'none';
-        uploadForm.style.display = 'block';
+        if (loadingState) loadingState.style.display = 'none';
+        if (uploadForm) uploadForm.style.display = 'block';
     }
 });
 
