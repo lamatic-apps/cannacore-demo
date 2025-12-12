@@ -142,6 +142,14 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       data: { query, variables }
     };
 
+    console.log('=== API REQUEST PAYLOAD ===');
+    console.log('URL:', options.url);
+    const sanitizedHeaders = { ...options.headers, Authorization: options.headers.Authorization ? '[REDACTED]' : undefined };
+    console.log('Headers:', JSON.stringify(sanitizedHeaders, null, 2));
+    console.log('Query:', query);
+    console.log('Variables:', JSON.stringify(variables, null, 2));
+    console.log('Full Request Data:', JSON.stringify(options.data, null, 2));
+    console.log('===========================');
     console.log('Calling Lamatic API...');
     const response = await axios(options);
 
