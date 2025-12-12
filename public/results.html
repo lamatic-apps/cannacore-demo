@@ -69,7 +69,8 @@
                 compliantItems.forEach(item => {
                     const card = document.createElement('div');
                     card.className = 'results-compliant-card';
-                    card.textContent = item.summary || item;
+                    // Handle both object with summary property and string items
+                    card.textContent = typeof item === 'string' ? item : (item.summary || 'No summary available');
                     compliantContainer.appendChild(card);
                 });
             } else {
