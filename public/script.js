@@ -15,15 +15,11 @@ const loadingState = document.getElementById('loadingState');
 const resultsSection = document.getElementById('resultsSection');
 const errorSection = document.getElementById('errorSection');
 
-// Image upload handling
+// IMAGE file input
 imageUploadArea.addEventListener('click', () => imageInput.click());
+imageInput.addEventListener('change', (e) => handleImageFiles(e.target.files));
 
-imageInput.addEventListener('change', (e) => {
-    handleImageFiles(e.target.files);
-});
-
-// Drag and drop for images
-imageUploadArea.addEventListener('dragover', (e) => {
+imageUploadArea.addEventListener('dragover', e => {
     e.preventDefault();
     imageUploadArea.classList.add('drag-over');
 });
@@ -32,233 +28,186 @@ imageUploadArea.addEventListener('dragleave', () => {
     imageUploadArea.classList.remove('drag-over');
 });
 
-imageUploadArea.addEventListener('drop', (e) => {
+imageUploadArea.addEventListener('drop', e => {
     e.preventDefault();
     imageUploadArea.classList.remove('drag-over');
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'));
     handleImageFiles(files);
 });
 
-// PDF upload handling
+// PDF file input
 pdfUploadArea.addEventListener('click', () => pdfInput.click());
-
-pdfInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        handlePdfFile(e.target.files[0]);
-    }
+pdfInput.addEventListener('change', e => {
+    if (e.target.files.length > 0) handlePdfFile(e.target.files[0]);
 });
 
-// Drag and drop for PDF
-pdfUploadArea.addEventListener('dragover', (e) => {
+pdfUploadArea.addEventListener('dragover', e => {
     e.preventDefault();
     pdfUploadArea.classList.add('drag-over');
 });
 
-pdfUploadArea.addEventListener('dragleave', () => {
-    pdfUploadArea.classList.remove('drag-over');
-});
+pdfUploadArea.addEventListener('dragleave', () => pdfUploadArea.classList.remove('drag-over'));
 
-pdfUploadArea.addEventListener('drop', (e) => {
+pdfUploadArea.addEventListener('drop', e => {
     e.preventDefault();
     pdfUploadArea.classList.remove('drag-over');
-    const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
-    if (files.length > 0) {
-        handlePdfFile(files[0]);
-    }
+    const files = [...e.dataTransfer.files].filter(f => f.type === 'application/pdf');
+    if (files.length > 0) handlePdfFile(files[0]);
 });
 
-// Handle image files
+// HANDLE IMAGES
 function handleImageFiles(files) {
-    const fileArray = Array.from(files);
-    
-    fileArray.forEach(file => {
+    for (const file of files) {
         if (file.type.startsWith('image/')) {
             selectedImages.push(file);
         }
-    });
-
+    }
     updateImagePreview();
     updateSubmitButton();
 }
 
-// Update image preview
+// IMAGE PREVIEW
 function updateImagePreview() {
     if (selectedImages.length === 0) {
-        imagePreview.innerHTML = '';
+        imagePreview.innerHTML = "";
         return;
     }
 
-    const grid = document.createElement('div');
-    grid.className = 'image-preview-grid';
+    const grid = document.createElement("div");
+    grid.className = "image-preview-grid";
 
     selectedImages.forEach((file, index) => {
-        const item = document.createElement('div');
-        item.className = 'image-preview-item';
+        const item = document.createElement("div");
+        item.className = "image-preview-item";
 
-        const img = document.createElement('img');
+        const img = document.createElement("img");
         img.src = URL.createObjectURL(file);
         img.alt = file.name;
 
-        const removeBtn = document.createElement('button');
-        removeBtn.className = 'remove-image';
-        removeBtn.innerHTML = '×';
-        removeBtn.onclick = (e) => {
+        const btn = document.createElement("button");
+        btn.className = "remove-image";
+        btn.textContent = "×";
+        btn.onclick = e => {
             e.preventDefault();
             removeImage(index);
         };
 
         item.appendChild(img);
-        item.appendChild(removeBtn);
+        item.appendChild(btn);
         grid.appendChild(item);
     });
 
-    imagePreview.innerHTML = '';
+    imagePreview.innerHTML = "";
     imagePreview.appendChild(grid);
 }
 
-// Remove image
 function removeImage(index) {
     selectedImages.splice(index, 1);
     updateImagePreview();
     updateSubmitButton();
 }
 
-// Handle PDF file
+// HANDLE PDF
 function handlePdfFile(file) {
-    if (file.type === 'application/pdf') {
-        selectedPdf = file;
-        updatePdfPreview();
-        updateSubmitButton();
-    }
-}
-
-// Update PDF preview
-function updatePdfPreview() {
-    if (!selectedPdf) {
-        pdfPreview.innerHTML = '';
-        return;
-    }
-
-    const preview = document.createElement('div');
-    preview.className = 'pdf-preview';
-
-    preview.innerHTML = `
-        <div class="pdf-icon">PDF</div>
-        <div class="pdf-info">
-            <strong>${selectedPdf.name}</strong>
-            <span>${formatFileSize(selectedPdf.size)}</span>
-        </div>
-        <button class="remove-pdf" onclick="removePdf(event)">Remove</button>
-    `;
-
-    pdfPreview.innerHTML = '';
-    pdfPreview.appendChild(preview);
-}
-
-// Remove PDF
-function removePdf(e) {
-    e.preventDefault();
-    selectedPdf = null;
-    pdfInput.value = '';
+    selectedPdf = file;
     updatePdfPreview();
     updateSubmitButton();
 }
 
-// Format file size
-function formatFileSize(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+function updatePdfPreview() {
+    if (!selectedPdf) {
+        pdfPreview.innerHTML = "";
+        return;
+    }
+
+    pdfPreview.innerHTML = `
+        <div class="pdf-preview">
+            <strong>${selectedPdf.name}</strong>
+            <span>${formatFileSize(selectedPdf.size)}</span>
+            <button onclick="removePdf(event)">Remove</button>
+        </div>`;
 }
 
-// Update submit button state
+function removePdf(e) {
+    e.preventDefault();
+    selectedPdf = null;
+    pdfInput.value = "";
+    updatePdfPreview();
+    updateSubmitButton();
+}
+
+function formatFileSize(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
+}
+
 function updateSubmitButton() {
     submitBtn.disabled = !(selectedImages.length > 0 && selectedPdf);
 }
 
-// Handle form submission
-uploadForm.addEventListener('submit', async (e) => {
+// HANDLE SUBMIT
+uploadForm.addEventListener('submit', async e => {
     e.preventDefault();
+    resultsSection.innerHTML = "";
+    errorSection.innerHTML = "";
 
-    // Validate
-    if (selectedImages.length === 0 || !selectedPdf) {
-        showError('Please upload both images and a PDF file.');
-        return;
-    }
-
-    // Prepare form data
     const formData = new FormData();
-    
-    selectedImages.forEach(image => {
-        formData.append('images', image);
-    });
-    
-    formData.append('pdf', selectedPdf);
+    selectedImages.forEach(img => formData.append("images", img));
+    formData.append("pdf", selectedPdf);
 
-    // Show loading state
-    if (uploadForm) uploadForm.style.display = 'none';
-    if (loadingState) loadingState.style.display = 'block';
-    if (resultsSection) resultsSection.style.display = 'none';
-    if (errorSection) errorSection.style.display = 'none';
+    uploadForm.style.display = "none";
+    loadingState.style.display = "block";
 
     try {
-        const response = await fetch('/api/check-compliance', {
-            method: 'POST',
+        const response = await fetch("/api/check-compliance", {
+            method: "POST",
             body: formData
         });
 
-        const data = await response.json();
+        const json = await response.json();
+        console.log("Response:", json);
 
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to check compliance');
-        }
+        const issues =
+            json?.result?.output?.issues ||
+            json?.result?.issues ||
+            json?.issues ||
+            [];
 
-       // Extract issues array from response
-let issues = [];
+        loadingState.style.display = "none";
+        displayIssues(issues);
 
-if (data?.data?.executeWorkflow?.result?.output?.issues) {
-    issues = data.data.executeWorkflow.result.output.issues;
-} else if (data?.result?.output?.issues) {
-    issues = data.result.output.issues;
-} else if (data?.output?.issues) {
-    issues = data.output.issues;
-} else if (data?.issues) {
-    issues = data.issues;
-}
-
-console.log("Normalized Issues:", issues);
-
-// Save ONLY issues array to sessionStorage
-sessionStorage.setItem(
-    "complianceResults",
-    JSON.stringify({ issues })
-);
-
-// redirect
-window.location.href = "/results.html";
-
-
-        // Redirect to results page
-        window.location.href = '/results.html';
-
-    } catch (error) {
-        console.error('Error:', error);
-        showError(error.message || 'An error occurred while checking compliance. Please try again.');
-        if (loadingState) loadingState.style.display = 'none';
-        if (uploadForm) uploadForm.style.display = 'block';
+    } catch (err) {
+        loadingState.style.display = "none";
+        uploadForm.style.display = "block";
+        showError(err.message);
     }
 });
 
-// Show error message
-function showError(message) {
-    errorSection.innerHTML = `
-        <h3>Error</h3>
-        <p>${message}</p>
-    `;
-    errorSection.style.display = 'block';
-    
-    // Scroll to error
-    errorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+// DISPLAY ISSUES ON SAME PAGE
+function displayIssues(issues) {
+    resultsSection.style.display = "block";
+    resultsSection.innerHTML = `<h2>NON-COMPLIANT ITEMS (${issues.length})</h2>`;
+
+    if (issues.length === 0) {
+        resultsSection.innerHTML += "<p>No non-compliant issues found</p>";
+        return;
+    }
+
+    issues.forEach(issue => {
+        const card = document.createElement("div");
+        card.className = "results-card";
+
+        card.innerHTML = `
+            <p style="color:red;font-weight:bold;">${issue.issue_identified}</p>
+            <p><strong>Evidence:</strong> ${issue.evidence || "None provided"}</p>
+            <p><strong>Suggested Fix:</strong> ${issue.suggested_fix || "None provided"}</p>
+        `;
+        resultsSection.appendChild(card);
+    });
+}
+
+function showError(msg) {
+    errorSection.style.display = "block";
+    errorSection.innerHTML = `<p>${msg}</p>`;
 }

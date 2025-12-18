@@ -12,6 +12,15 @@ body {
     color: #1a1a1a;
 }
 
+.results-card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    border: 1px solid #ddd;
+}
+
+
 .container {
     max-width: 1000px;
     margin: 0 auto;
@@ -224,8 +233,13 @@ main {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 .loading-state p {
