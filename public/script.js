@@ -151,6 +151,8 @@ uploadForm.addEventListener('submit', async e => {
     e.preventDefault();
     resultsSection.innerHTML = "";
     errorSection.innerHTML = "";
+    errorSection.style.display = "none";
+    resultsSection.style.display = "none";
 
     const formData = new FormData();
     selectedImages.forEach(img => formData.append("images", img));
@@ -164,42 +166,66 @@ uploadForm.addEventListener('submit', async e => {
             method: "POST",
             body: formData
         });
-
+        
+        console.log("Raw Response:", response);
         const json = await response.json();
-        console.log("Response:", json);
+        console.log("Full JSON Response:", JSON.stringify(json, null, 2));
 
-        const issues =
-            json?.result?.output?.issues ||
-            json?.result?.issues ||
-            json?.issues ||
-            [];
+        // FIXED: Parse the correct path from Lamatic response
+        let issues = [];
+        
+        // Try multiple possible paths
+        if (json?.data?.executeWorkflow?.result?.output?.issues) {
+            issues = json.data.executeWorkflow.result.output.issues;
+        } else if (json?.result?.output?.issues) {
+            issues = json.result.output.issues;
+        } else if (json?.result?.issues) {
+            issues = json.result.issues;
+        } else if (json?.issues) {
+            issues = json.issues;
+        } else if (json?.output?.issues) {
+            issues = json.output.issues;
+        }
 
-        loadingState.style.display = "none";
-        displayIssues(issues);
+        console.log("Extracted issues:", issues);
 
-    } catch (err) {
         loadingState.style.display = "none";
         uploadForm.style.display = "block";
-        showError(err.message);
+        
+        if (Array.isArray(issues) && issues.length >= 0) {
+            displayIssues(issues);
+        } else {
+            showError("Could not parse compliance issues from response. Check console for details.");
+            console.error("Could not find issues array in response:", json);
+        }
+
+    } catch (err) {
+        console.error("Error:", err);
+        loadingState.style.display = "none";
+        uploadForm.style.display = "block";
+        showError(err.message || "An error occurred while checking compliance");
     }
 });
 
 // DISPLAY ISSUES ON SAME PAGE
 function displayIssues(issues) {
     resultsSection.style.display = "block";
-    resultsSection.innerHTML = `<h2>NON-COMPLIANT ITEMS (${issues.length})</h2>`;
+    resultsSection.innerHTML = `<h2>COMPLIANCE REPORT</h2>`;
 
     if (issues.length === 0) {
-        resultsSection.innerHTML += "<p>No non-compliant issues found</p>";
+        resultsSection.innerHTML += "<div class='results-card' style='background:#d4edda;border-left:4px solid #28a745;'><p style='color:#155724;font-weight:bold;'>✓ No non-compliant issues found! Product appears to be compliant.</p></div>";
         return;
     }
 
-    issues.forEach(issue => {
+    resultsSection.innerHTML += `<p style="color:#721c24;font-weight:bold;margin-bottom:20px;">Found ${issues.length} compliance issue(s):</p>`;
+
+    issues.forEach((issue, index) => {
         const card = document.createElement("div");
         card.className = "results-card";
 
         card.innerHTML = `
-            <p style="color:red;font-weight:bold;">${issue.issue_identified}</p>
+            <h3 style="color:#721c24;margin-top:0;">Issue #${index + 1}</h3>
+            <p style="color:#721c24;font-weight:bold;margin-bottom:10px;">${issue.issue_identified || "No issue description"}</p>
             <p><strong>Evidence:</strong> ${issue.evidence || "None provided"}</p>
             <p><strong>Suggested Fix:</strong> ${issue.suggested_fix || "None provided"}</p>
         `;
@@ -209,5 +235,5 @@ function displayIssues(issues) {
 
 function showError(msg) {
     errorSection.style.display = "block";
-    errorSection.innerHTML = `<p>${msg}</p>`;
+    errorSection.innerHTML = `<p style="color:#721c24;padding:15px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;">${msg}</p>`;
 }
