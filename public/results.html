@@ -2,85 +2,70 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Results</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compliance Results</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
 
-    <h1>NON-COMPLIANT ISSUES</h1>
-    <h3 id="count"></h3>
+    <h1>COMPLIANCE RESULTS</h1>
+    <h2 id="headerCount">NON-COMPLIANT ITEMS (0)</h2>
 
-    <div id="container"></div>
+    <div id="issuesContainer"></div>
+
+    <button onclick="goBack()">Back</button>
 
     <script>
         window.addEventListener("DOMContentLoaded", () => {
             const stored = sessionStorage.getItem("complianceResults");
+            if (!stored) return;
 
-            if (!stored) {
-                console.log("Nothing found in sessionStorage");
+            const parsed = JSON.parse(stored);
+            const issues = parsed.issues || [];
+
+            console.log("Loaded issues:", issues);
+
+            document.getElementById("headerCount").textContent =
+                `NON-COMPLIANT ITEMS (${issues.length})`;
+
+            const container = document.getElementById("issuesContainer");
+
+            if (issues.length === 0) {
+                container.innerHTML = "<p>No issues found</p>";
                 return;
             }
 
-            let parsed;
-
-            try {
-                parsed = JSON.parse(stored);
-            } catch (e) {
-                console.error("Parse failed", e);
-                return;
-            }
-
-            const issues = parsed?.issues || [];
-
-            console.log("Parsed issues:", issues);
-
-            const header = document.getElementById("count");
-            const container = document.getElementById("container");
-
-            header.textContent = `Total: ${issues.length}`;
-
-            issues.forEach(i => {
-                const div = document.createElement("div");
-                div.style.border = "1px solid black";
-                div.style.margin = "10px";
-                div.style.padding = "8px";
+            issues.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "results-non-compliant-card";
 
                 const title = document.createElement("p");
-                title.textContent = i.issue_identified;
+                title.textContent = item.issue_identified;
                 title.style.color = "red";
                 title.style.fontWeight = "bold";
+                card.appendChild(title);
 
-                div.appendChild(title);
-
-                if (i.evidence) {
-                    div.appendChild(makeSection("Evidence", i.evidence));
+                if (item.evidence) {
+                    const e = document.createElement("p");
+                    e.textContent = `Evidence: ${item.evidence}`;
+                    card.appendChild(e);
                 }
 
-                if (i.suggested_fix) {
-                    div.appendChild(makeSection("Suggested Fix", i.suggested_fix));
+                if (item.suggested_fix) {
+                    const f = document.createElement("p");
+                    f.textContent = `Suggested fix: ${item.suggested_fix}`;
+                    card.appendChild(f);
                 }
 
-                container.appendChild(div);
+                container.appendChild(card);
             });
         });
 
-        function makeSection(label, text) {
-            const wrap = document.createElement("div");
-            wrap.style.marginTop = "5px";
-
-            const bold = document.createElement("span");
-            bold.style.fontWeight = "bold";
-            bold.textContent = label + ": ";
-
-            const value = document.createElement("span");
-            value.textContent = text;
-
-            wrap.appendChild(bold);
-            wrap.appendChild(value);
-
-            return wrap;
+        function goBack() {
+            sessionStorage.removeItem("complianceResults");
+            window.location.href = "/";
         }
     </script>
 

@@ -1,169 +1,227 @@
-// ===============================
 // State management
-// ===============================
 let selectedImages = [];
 let selectedPdf = null;
 
-// DOM elements
-const imageInput = document.getElementById("imageInput");
-const pdfInput = document.getElementById("pdfInput");
-const imageUploadArea = document.getElementById("imageUploadArea");
-const pdfUploadArea = document.getElementById("pdfUploadArea");
-const imagePreview = document.getElementById("imagePreview");
-const pdfPreview = document.getElementById("pdfPreview");
-const uploadForm = document.getElementById("uploadForm");
-const submitBtn = document.getElementById("submitBtn");
-const loadingState = document.getElementById("loadingState");
-const resultsSection = document.getElementById("resultsSection");
-const errorSection = document.getElementById("errorSection");
+// Get DOM elements
+const imageInput = document.getElementById('imageInput');
+const pdfInput = document.getElementById('pdfInput');
+const imageUploadArea = document.getElementById('imageUploadArea');
+const pdfUploadArea = document.getElementById('pdfUploadArea');
+const imagePreview = document.getElementById('imagePreview');
+const pdfPreview = document.getElementById('pdfPreview');
+const uploadForm = document.getElementById('uploadForm');
+const submitBtn = document.getElementById('submitBtn');
+const loadingState = document.getElementById('loadingState');
+const resultsSection = document.getElementById('resultsSection');
+const errorSection = document.getElementById('errorSection');
 
-// ===============================
-// IMAGE HANDLERS
-// ===============================
+// Image upload handling
+imageUploadArea.addEventListener('click', () => imageInput.click());
 
-imageUploadArea.addEventListener("click", () => imageInput.click());
-imageInput.addEventListener("change", (e) => handleImageFiles(e.target.files));
-
-imageUploadArea.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    imageUploadArea.classList.add("drag-over");
+imageInput.addEventListener('change', (e) => {
+    handleImageFiles(e.target.files);
 });
-imageUploadArea.addEventListener("dragleave", () =>
-    imageUploadArea.classList.remove("drag-over")
-);
-imageUploadArea.addEventListener("drop", (e) => {
+
+// Drag and drop for images
+imageUploadArea.addEventListener('dragover', (e) => {
     e.preventDefault();
-    imageUploadArea.classList.remove("drag-over");
-    const files = Array.from(e.dataTransfer.files).filter((f) =>
-        f.type.startsWith("image/")
-    );
+    imageUploadArea.classList.add('drag-over');
+});
+
+imageUploadArea.addEventListener('dragleave', () => {
+    imageUploadArea.classList.remove('drag-over');
+});
+
+imageUploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    imageUploadArea.classList.remove('drag-over');
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type.startsWith('image/'));
     handleImageFiles(files);
 });
 
+// PDF upload handling
+pdfUploadArea.addEventListener('click', () => pdfInput.click());
+
+pdfInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        handlePdfFile(e.target.files[0]);
+    }
+});
+
+// Drag and drop for PDF
+pdfUploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    pdfUploadArea.classList.add('drag-over');
+});
+
+pdfUploadArea.addEventListener('dragleave', () => {
+    pdfUploadArea.classList.remove('drag-over');
+});
+
+pdfUploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    pdfUploadArea.classList.remove('drag-over');
+    const files = Array.from(e.dataTransfer.files).filter(file => file.type === 'application/pdf');
+    if (files.length > 0) {
+        handlePdfFile(files[0]);
+    }
+});
+
+// Handle image files
 function handleImageFiles(files) {
-    selectedImages.push(...files);
+    const fileArray = Array.from(files);
+    
+    fileArray.forEach(file => {
+        if (file.type.startsWith('image/')) {
+            selectedImages.push(file);
+        }
+    });
+
     updateImagePreview();
     updateSubmitButton();
 }
 
+// Update image preview
 function updateImagePreview() {
     if (selectedImages.length === 0) {
-        imagePreview.innerHTML = "";
+        imagePreview.innerHTML = '';
         return;
     }
 
-    const container = document.createElement("div");
-    container.className = "image-preview-grid";
+    const grid = document.createElement('div');
+    grid.className = 'image-preview-grid';
 
     selectedImages.forEach((file, index) => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "image-preview-item";
+        const item = document.createElement('div');
+        item.className = 'image-preview-item';
 
-        const img = document.createElement("img");
+        const img = document.createElement('img');
         img.src = URL.createObjectURL(file);
+        img.alt = file.name;
 
-        const removeBtn = document.createElement("button");
-        removeBtn.innerHTML = "×";
-        removeBtn.onclick = () => {
-            selectedImages.splice(index, 1);
-            updateImagePreview();
-            updateSubmitButton();
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-image';
+        removeBtn.innerHTML = '×';
+        removeBtn.onclick = (e) => {
+            e.preventDefault();
+            removeImage(index);
         };
 
-        wrapper.appendChild(img);
-        wrapper.appendChild(removeBtn);
-        container.appendChild(wrapper);
+        item.appendChild(img);
+        item.appendChild(removeBtn);
+        grid.appendChild(item);
     });
 
-    imagePreview.innerHTML = "";
-    imagePreview.appendChild(container);
+    imagePreview.innerHTML = '';
+    imagePreview.appendChild(grid);
 }
 
-// ===============================
-// PDF logic
-// ===============================
+// Remove image
+function removeImage(index) {
+    selectedImages.splice(index, 1);
+    updateImagePreview();
+    updateSubmitButton();
+}
 
-pdfUploadArea.addEventListener("click", () => pdfInput.click());
-pdfInput.addEventListener("change", (e) => {
-    if (e.target.files.length > 0) {
-        selectedPdf = e.target.files[0];
+// Handle PDF file
+function handlePdfFile(file) {
+    if (file.type === 'application/pdf') {
+        selectedPdf = file;
         updatePdfPreview();
         updateSubmitButton();
     }
-});
+}
 
+// Update PDF preview
 function updatePdfPreview() {
     if (!selectedPdf) {
-        pdfPreview.innerHTML = "";
+        pdfPreview.innerHTML = '';
         return;
     }
 
-    pdfPreview.innerHTML = `
-        <div class="pdf-preview">
-            <div><strong>${selectedPdf.name}</strong></div>
-            <button onclick="removePdf(event)">Remove</button>
+    const preview = document.createElement('div');
+    preview.className = 'pdf-preview';
+
+    preview.innerHTML = `
+        <div class="pdf-icon">PDF</div>
+        <div class="pdf-info">
+            <strong>${selectedPdf.name}</strong>
+            <span>${formatFileSize(selectedPdf.size)}</span>
         </div>
+        <button class="remove-pdf" onclick="removePdf(event)">Remove</button>
     `;
+
+    pdfPreview.innerHTML = '';
+    pdfPreview.appendChild(preview);
 }
 
+// Remove PDF
 function removePdf(e) {
     e.preventDefault();
     selectedPdf = null;
+    pdfInput.value = '';
     updatePdfPreview();
     updateSubmitButton();
 }
 
-// ===============================
-// SUBMIT HANDLER
-// ===============================
-uploadForm.addEventListener("submit", async (e) => {
+// Format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+// Update submit button
+function updateSubmitButton() {
+    submitBtn.disabled = !(selectedImages.length > 0 && selectedPdf);
+}
+
+// Submit form
+uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    if (selectedImages.length === 0 || !selectedPdf) {
-        alert("Upload required files");
-        return;
-    }
-
     const formData = new FormData();
-    selectedImages.forEach((img) => formData.append("images", img));
-    formData.append("pdf", selectedPdf);
+    
+    selectedImages.forEach(image => {
+        formData.append('images', image);
+    });
 
-    loadingState.style.display = "block";
-    uploadForm.style.display = "none";
+    formData.append('pdf', selectedPdf);
+
+    uploadForm.style.display = 'none';
+    loadingState.style.display = 'block';
 
     try {
-        const response = await fetch("/api/check-compliance", {
-            method: "POST",
-            body: formData,
+        const response = await fetch('/api/check-compliance', {
+            method: 'POST',
+            body: formData
         });
 
         const apiData = await response.json();
-
-        if (!apiData.result) throw new Error("Invalid response");
-
-        // Extract the issues and store
+        
         const issues =
-            apiData.result?.output?.issues ||
-            apiData.result?.issues ||
+            apiData?.result?.output?.issues ||
+            apiData?.result?.issues ||
+            apiData?.issues ||
             [];
-
-        console.log("Saving to sessionStorage:", issues);
-
-        sessionStorage.setItem(
-            "complianceResults",
-            JSON.stringify({ issues })
-        );
+        
+        sessionStorage.setItem("complianceResults", JSON.stringify({ issues }));
 
         window.location.href = "/results.html";
-    } catch (err) {
-        console.error("UPLOAD ERR:", err);
-        alert("Upload failed");
-        loadingState.style.display = "none";
-        uploadForm.style.display = "block";
+
+    } catch (error) {
+        console.error(error);
+        showError(error.message || 'Error while checking compliance.');
     }
 });
 
-// enable submit button when ready
-function updateSubmitButton() {
-    submitBtn.disabled = !(selectedImages.length > 0 && selectedPdf);
+// Error UI
+function showError(message) {
+    errorSection.innerHTML = `
+        <h3>Error</h3>
+        <p>${message}</p>
+    `;
+    errorSection.style.display = 'block';
 }
