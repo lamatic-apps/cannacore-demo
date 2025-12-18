@@ -215,16 +215,18 @@ uploadForm.addEventListener('submit', async (e) => {
             throw new Error(data.error || 'Failed to check compliance');
         }
 
-        // Handle nested output structure
-        const result = data.result.output || data.result;
-        const compliantItems = result.compliant_items || [];
-        const nonCompliantItems = result.non_compliant_items || [];
-         
-        console.log(result)
-        sessionStorage.setItem('complianceResults', JSON.stringify({
-            compliant_items: compliantItems,
-            non_compliant_items: nonCompliantItems
-        }));
+       const issues =
+    result?.output?.issues ||
+    result?.issues ||
+    [];
+
+// Save correctly
+sessionStorage.setItem(
+    "complianceResults",
+    JSON.stringify({ issues })
+);
+
+console.log("saved successfully:", sessionStorage.getItem("complianceResults"));
 
         // Redirect to results page
         window.location.href = '/results.html';

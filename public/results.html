@@ -31,83 +31,86 @@
 
     <script>
         window.addEventListener('DOMContentLoaded', () => {
-            const resultsData = sessionStorage.getItem('complianceResults');
 
-            if (!resultsData) {
-                console.log("No results data found in sessionStorage.");
+            const stored = sessionStorage.getItem("complianceResults");
+            console.log("RAW sessionStorage:", stored);
+
+            if (!stored) {
+                console.log("Missing results, redirecting...");
                 window.location.href = '/';
                 return;
             }
 
+            let parsed;
             try {
-                const parsed = JSON.parse(resultsData);
-                console.log("Parsed results data:", parsed);
-                const issues =
-                    parsed?.data?.executeWorkflow?.result?.output?.issues ||
-                    parsed?.executeWorkflow?.result?.output?.issues ||
-                    parsed?.result?.output?.issues ||
-                    parsed?.output?.issues ||
-                    parsed?.issues ||
-                    [];
-
-
-                displayResults(issues);
-            } catch (error) {
-                console.error("Error parsing:", error);
+                parsed = JSON.parse(stored);
+            } catch (e) {
+                console.error("JSON parse failed", e);
                 window.location.href = '/';
+                return;
             }
+
+            const issues = parsed.issues || [];
+            console.log("Parsed issues:", issues);
+
+            renderIssues(issues);
         });
 
-        function displayResults(issues) {
+        function renderIssues(issues) {
+
             const container = document.getElementById('nonCompliantItemsContainer');
             const header = document.getElementById('nonCompliantHeader');
 
             header.textContent = `NON-COMPLIANT ITEMS (${issues.length})`;
 
             if (issues.length === 0) {
-                container.innerHTML = `<p>No non-compliant issues found</p>`;
+                container.innerHTML = "<p>No non-compliant issues found.</p>";
                 return;
             }
 
             issues.forEach(issue => {
+
                 const card = document.createElement("div");
                 card.className = "results-non-compliant-card";
 
+                // title (red text)
                 const title = document.createElement("p");
                 title.textContent = issue.issue_identified;
                 title.style.color = "red";
                 title.style.fontWeight = "bold";
                 card.appendChild(title);
 
+                // evidence
                 if (issue.evidence) {
-                    const label = document.createElement("p");
-                    label.textContent = "Evidence:";
-                    label.style.fontWeight = "bold";
-                    card.appendChild(label);
+                    const lab = document.createElement("p");
+                    lab.style.fontWeight = "bold";
+                    lab.textContent = "Evidence:";
+                    card.appendChild(lab);
 
-                    const value = document.createElement("p");
-                    value.textContent = issue.evidence;
-                    card.appendChild(value);
+                    const ev = document.createElement("p");
+                    ev.textContent = issue.evidence;
+                    card.appendChild(ev);
                 }
 
+                // suggested fix
                 if (issue.suggested_fix) {
-                    const label = document.createElement("p");
-                    label.textContent = "Suggested Fix:";
-                    label.style.fontWeight = "bold";
-                    card.appendChild(label);
+                    const lab = document.createElement("p");
+                    lab.style.fontWeight = "bold";
+                    lab.textContent = "Suggested Fix:";
+                    card.appendChild(lab);
 
-                    const value = document.createElement("p");
-                    value.textContent = issue.suggested_fix;
-                    card.appendChild(value);
+                    const fix = document.createElement("p");
+                    fix.textContent = issue.suggested_fix;
+                    card.appendChild(fix);
                 }
 
                 container.appendChild(card);
             });
         }
 
-        document.getElementById('backButton').addEventListener('click', () => {
-            sessionStorage.removeItem('complianceResults');
-            window.location.href = '/';
+        document.getElementById("backButton").addEventListener("click", () => {
+            sessionStorage.removeItem("complianceResults");
+            window.location.href = "/";
         });
     </script>
 
