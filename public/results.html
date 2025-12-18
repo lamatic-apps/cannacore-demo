@@ -2,111 +2,86 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Compliance Results - Cannabis Compliance Checker</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Results</title>
 </head>
 
 <body>
-    <div class="container">
-        <div class="results-page">
-            <h1 class="results-title">COMPLIANCE RESULTS</h1>
 
-            <div class="results-divider"></div>
+    <h1>NON-COMPLIANT ISSUES</h1>
+    <h3 id="count"></h3>
 
-            <!-- Non-Compliant Items Section -->
-            <section class="results-non-compliant-section">
-                <h2 class="results-section-header" id="nonCompliantHeader">NON-COMPLIANT ITEMS</h2>
-                <div id="nonCompliantItemsContainer"></div>
-            </section>
-
-            <!-- Back Button -->
-            <button id="backButton" class="results-back-button">BACK TO UPLOAD</button>
-        </div>
-    </div>
+    <div id="container"></div>
 
     <script>
-        window.addEventListener('DOMContentLoaded', () => {
-            const resultsData = sessionStorage.getItem('complianceResults');
+        window.addEventListener("DOMContentLoaded", () => {
+            const stored = sessionStorage.getItem("complianceResults");
 
-            if (!resultsData) {
-                window.location.href = '/';
+            if (!stored) {
+                console.log("Nothing found in sessionStorage");
                 return;
             }
+
+            let parsed;
 
             try {
-                const parsed = JSON.parse(resultsData);
-
-                const issues =
-                    parsed?.data?.executeWorkflow?.result?.output?.issues ||
-                    parsed?.executeWorkflow?.result?.output?.issues ||
-                    parsed?.result?.output?.issues ||
-                    parsed?.output?.issues ||
-                    parsed?.issues ||
-                    [];
-                console.log("Parsed issues:", issues);
-                displayResults(issues);
-            } catch (error) {
-                console.error("Error parsing:", error);
-                window.location.href = '/';
-            }
-        });
-
-        function displayResults(issues) {
-            const container = document.getElementById('nonCompliantItemsContainer');
-            const header = document.getElementById('nonCompliantHeader');
-
-            header.textContent = `NON-COMPLIANT ITEMS (${issues.length})`;
-
-            if (issues.length === 0) {
-                container.innerHTML = `<p>No non-compliant issues found</p>`;
+                parsed = JSON.parse(stored);
+            } catch (e) {
+                console.error("Parse failed", e);
                 return;
             }
 
-            issues.forEach(issue => {
-                const card = document.createElement("div");
-                card.className = "results-non-compliant-card";
+            const issues = parsed?.issues || [];
+
+            console.log("Parsed issues:", issues);
+
+            const header = document.getElementById("count");
+            const container = document.getElementById("container");
+
+            header.textContent = `Total: ${issues.length}`;
+
+            issues.forEach(i => {
+                const div = document.createElement("div");
+                div.style.border = "1px solid black";
+                div.style.margin = "10px";
+                div.style.padding = "8px";
 
                 const title = document.createElement("p");
-                title.textContent = issue.issue_identified;
+                title.textContent = i.issue_identified;
                 title.style.color = "red";
                 title.style.fontWeight = "bold";
-                card.appendChild(title);
 
-                if (issue.evidence) {
-                    const label = document.createElement("p");
-                    label.textContent = "Evidence:";
-                    label.style.fontWeight = "bold";
-                    card.appendChild(label);
+                div.appendChild(title);
 
-                    const value = document.createElement("p");
-                    value.textContent = issue.evidence;
-                    card.appendChild(value);
+                if (i.evidence) {
+                    div.appendChild(makeSection("Evidence", i.evidence));
                 }
 
-                if (issue.suggested_fix) {
-                    const label = document.createElement("p");
-                    label.textContent = "Suggested Fix:";
-                    label.style.fontWeight = "bold";
-                    card.appendChild(label);
-
-                    const value = document.createElement("p");
-                    value.textContent = issue.suggested_fix;
-                    card.appendChild(value);
+                if (i.suggested_fix) {
+                    div.appendChild(makeSection("Suggested Fix", i.suggested_fix));
                 }
 
-                container.appendChild(card);
+                container.appendChild(div);
             });
-        }
-
-        document.getElementById('backButton').addEventListener('click', () => {
-            sessionStorage.removeItem('complianceResults');
-            window.location.href = '/';
         });
+
+        function makeSection(label, text) {
+            const wrap = document.createElement("div");
+            wrap.style.marginTop = "5px";
+
+            const bold = document.createElement("span");
+            bold.style.fontWeight = "bold";
+            bold.textContent = label + ": ";
+
+            const value = document.createElement("span");
+            value.textContent = text;
+
+            wrap.appendChild(bold);
+            wrap.appendChild(value);
+
+            return wrap;
+        }
     </script>
 
 </body>
