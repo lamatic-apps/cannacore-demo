@@ -173,25 +173,35 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-// Update submit button
+// Update submit button state
 function updateSubmitButton() {
     submitBtn.disabled = !(selectedImages.length > 0 && selectedPdf);
 }
 
-// Submit form
+// Handle form submission
 uploadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    // Validate
+    if (selectedImages.length === 0 || !selectedPdf) {
+        showError('Please upload both images and a PDF file.');
+        return;
+    }
+
+    // Prepare form data
     const formData = new FormData();
     
     selectedImages.forEach(image => {
         formData.append('images', image);
     });
-
+    
     formData.append('pdf', selectedPdf);
 
-    uploadForm.style.display = 'none';
-    loadingState.style.display = 'block';
+    // Show loading state
+    if (uploadForm) uploadForm.style.display = 'none';
+    if (loadingState) loadingState.style.display = 'block';
+    if (resultsSection) resultsSection.style.display = 'none';
+    if (errorSection) errorSection.style.display = 'none';
 
     try {
         const response = await fetch('/api/check-compliance', {
@@ -199,29 +209,42 @@ uploadForm.addEventListener('submit', async (e) => {
             body: formData
         });
 
-        const apiData = await response.json();
-        
-        const issues =
-            apiData?.result?.output?.issues ||
-            apiData?.result?.issues ||
-            apiData?.issues ||
-            [];
-        
-        sessionStorage.setItem("complianceResults", JSON.stringify({ issues }));
+        const data = await response.json();
 
-        window.location.href = "/results.html";
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to check compliance');
+        }
+
+        // Handle nested output structure
+        const result = data.result.output || data.result;
+        const compliantItems = result.compliant_items || [];
+        const nonCompliantItems = result.non_compliant_items || [];
+
+        // Store results in sessionStorage
+        sessionStorage.setItem('complianceResults', JSON.stringify({
+            compliant_items: compliantItems,
+            non_compliant_items: nonCompliantItems
+        }));
+
+        // Redirect to results page
+        window.location.href = '/results.html';
 
     } catch (error) {
-        console.error(error);
-        showError(error.message || 'Error while checking compliance.');
+        console.error('Error:', error);
+        showError(error.message || 'An error occurred while checking compliance. Please try again.');
+        if (loadingState) loadingState.style.display = 'none';
+        if (uploadForm) uploadForm.style.display = 'block';
     }
 });
 
-// Error UI
+// Show error message
 function showError(message) {
     errorSection.innerHTML = `
         <h3>Error</h3>
         <p>${message}</p>
     `;
     errorSection.style.display = 'block';
+    
+    // Scroll to error
+    errorSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
