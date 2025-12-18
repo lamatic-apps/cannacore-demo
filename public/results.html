@@ -48,7 +48,7 @@
                     parsed?.output?.issues ||
                     parsed?.issues ||
                     [];
-
+                console.log("Parsed issues:", issues);
                 displayResults(issues);
             } catch (error) {
                 console.error("Error parsing:", error);
