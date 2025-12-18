@@ -39,8 +39,15 @@
             }
 
             try {
-                const results = JSON.parse(resultsData);
-                displayResults(results);
+                const parsed = JSON.parse(resultsData);
+
+                const issues =
+                    parsed?.data?.executeWorkflow?.result?.output?.issues ||
+                    parsed?.output?.issues ||
+                    parsed?.issues ||
+                    [];
+
+                displayResults({ issues });
             } catch (error) {
                 console.error("Error parsing results:", error);
                 window.location.href = '/';
@@ -59,7 +66,6 @@
                     const card = document.createElement('div');
                     card.className = 'results-non-compliant-card';
 
-                    // ISSUE IDENTIFIED (red bold text)
                     const issueTitle = document.createElement('p');
                     issueTitle.textContent = issue.issue_identified;
                     issueTitle.style.color = '#FF0000';
@@ -67,7 +73,6 @@
                     issueTitle.style.fontSize = '1rem';
                     card.appendChild(issueTitle);
 
-                    // Evidence section
                     if (issue.evidence) {
                         const evidenceLabel = document.createElement('div');
                         evidenceLabel.className = 'results-field-label';
@@ -80,7 +85,6 @@
                         card.appendChild(evidenceText);
                     }
 
-                    // Suggested Fix
                     if (issue.suggested_fix) {
                         const fixLabel = document.createElement('div');
                         fixLabel.className = 'results-field-label';
@@ -98,7 +102,7 @@
             } else {
                 const emptyState = document.createElement('p');
                 emptyState.className = 'results-empty-state';
-                emptyState.textContent = 'No non-compliant issues found';
+                emptyState.textContent = 'No non-compliant items found';
                 nonCompliantContainer.appendChild(emptyState);
             }
         }
