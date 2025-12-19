@@ -36,7 +36,7 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 10 * 1024 * 1024 // 10MB limit
+    fileSize: 50 * 1024 * 1024 // 50MB limit
   },
   fileFilter: function (req, file, cb) {
     if (file.fieldname === 'images') {
@@ -44,10 +44,10 @@ const upload = multer({
       if (!file.mimetype.startsWith('image/')) {
         return cb(new Error('Only image files are allowed for images!'), false);
       }
-    } else if (file.fieldname === 'pdf') {
-      // Accept PDF only
+    } else if (file.fieldname === 'pdf' || file.fieldname === 'labelsPdf') {
+      // Accept PDF only for both COA and labels
       if (file.mimetype !== 'application/pdf') {
-        return cb(new Error('Only PDF files are allowed for COA!'), false);
+        return cb(new Error('Only PDF files are allowed!'), false);
       }
     }
     cb(null, true);
@@ -57,13 +57,14 @@ const upload = multer({
 // API endpoint to handle file uploads and compliance check
 app.post('/api/check-compliance', apiLimiter, upload.fields([
   { name: 'images', maxCount: 10 },
-  { name: 'pdf', maxCount: 1 }
+  { name: 'pdf', maxCount: 1 },
+  { name: 'labelsPdf', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    // Validate uploads - only images are required, PDF is optional
-    if (!req.files || !req.files.images) {
+    // Validate uploads - at least images or labels PDF is required
+    if (!req.files || (!req.files.images && !req.files.labelsPdf)) {
       return res.status(400).json({
-        error: 'Please upload product images'
+        error: 'Please upload either product images or labels PDF'
       });
     }
 
@@ -76,6 +77,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     const images = req.files.images;
     const pdf = req.files.pdf ? req.files.pdf[0] : null;
+    const labelsPdf = req.files.labelsPdf ? req.files.labelsPdf[0] : null;
 
     console.log('=== SUPABASE UPLOAD ===');
     console.log('Uploading images to Supabase...');
@@ -84,39 +86,43 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     const imageUrls = [];
     const uploadedImagePaths = [];
     
-    for (let i = 0; i < images.length; i++) {
-      const image = images[i];
-      const uniqueId = crypto.randomUUID();
-      const imageFilename = `image-${uniqueId}${path.extname(image.originalname)}`;
-      const imagePath = `images/${imageFilename}`;
-      
-      const { data: imageData, error: imageError } = await supabase.storage
-        .from('cannacore')
-        .upload(imagePath, image.buffer, {
-          contentType: image.mimetype
-        });
-      
-      if (imageError) {
-        // Cleanup previously uploaded images
-        if (uploadedImagePaths.length > 0) {
-          try {
-            await supabase.storage
-              .from('cannacore')
-              .remove(uploadedImagePaths);
-          } catch (cleanupError) {
-            console.error('Failed to cleanup images after error:', cleanupError);
+    if (images) {
+      for (let i = 0; i < images.length; i++) {
+        const image = images[i];
+        const uniqueId = crypto.randomUUID();
+        const imageFilename = `image-${uniqueId}${path.extname(image.originalname)}`;
+        const imagePath = `images/${imageFilename}`;
+        
+        const { data: imageData, error: imageError } = await supabase.storage
+          .from('cannacore')
+          .upload(imagePath, image.buffer, {
+            contentType: image.mimetype
+          });
+        
+        if (imageError) {
+          // Cleanup previously uploaded images
+          if (uploadedImagePaths.length > 0) {
+            try {
+              await supabase.storage
+                .from('cannacore')
+                .remove(uploadedImagePaths);
+            } catch (cleanupError) {
+              console.error('Failed to cleanup images after error:', cleanupError);
+            }
           }
+          throw new Error(`Failed to upload image: ${imageError.message}`);
         }
-        throw new Error(`Failed to upload image: ${imageError.message}`);
+        
+        // Get public URL
+        const { data: imageUrlData } = supabase.storage
+          .from('cannacore')
+          .getPublicUrl(imagePath);
+        
+        imageUrls.push(imageUrlData.publicUrl);
+        uploadedImagePaths.push(imagePath);
       }
-      
-      // Get public URL
-      const { data: imageUrlData } = supabase.storage
-        .from('cannacore')
-        .getPublicUrl(imagePath);
-      
-      imageUrls.push(imageUrlData.publicUrl);
-      uploadedImagePaths.push(imagePath);
+    } else {
+      console.log('No images uploaded');
     }
 
     // Upload PDF to Supabase Storage (optional)
@@ -160,6 +166,55 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     console.log('Image URLs:', imageUrls);
     console.log('PDF URL:', pdfUrl);
+
+    // Upload Labels PDF to Supabase Storage (optional)
+    let labelsPdfUrl = '';
+    
+    if (labelsPdf) {
+      const uniqueLabelsPdfId = crypto.randomUUID();
+      const labelsPdfExtension = path.extname(labelsPdf.originalname) || '.pdf';
+      const labelsPdfFilename = `labels-pdf-${uniqueLabelsPdfId}${labelsPdfExtension}`;
+      const labelsPdfPath = `labels-pdfs/${labelsPdfFilename}`;
+      
+      const { data: labelsPdfData, error: labelsPdfError } = await supabase.storage
+        .from('cannacore')
+        .upload(labelsPdfPath, labelsPdf.buffer, {
+          contentType: labelsPdf.mimetype
+        });
+      
+      if (labelsPdfError) {
+        // Cleanup already uploaded files
+        try {
+          await supabase.storage
+            .from('cannacore')
+            .remove(allUploadedPaths);
+        } catch (cleanupError) {
+          console.error('Failed to cleanup files after labels PDF upload error:', cleanupError);
+        }
+        throw new Error(`Failed to upload labels PDF: ${labelsPdfError.message}`);
+      }
+      
+      // Get public URL for labels PDF
+      const { data: labelsPdfUrlData } = supabase.storage
+        .from('cannacore')
+        .getPublicUrl(labelsPdfPath);
+      
+      labelsPdfUrl = labelsPdfUrlData.publicUrl;
+      allUploadedPaths.push(labelsPdfPath);
+    } else {
+      console.log('No labels PDF uploaded');
+    }
+
+    console.log('Image URLs:', imageUrls);
+    console.log('PDF URL:', pdfUrl);
+    console.log('Labels PDF URL:', labelsPdfUrl);
+
+    // Add labels PDF to imageUrls array if provided
+    const allImageUrls = [...imageUrls];
+    if (labelsPdfUrl) {
+      allImageUrls.push(labelsPdfUrl);
+      console.log('Added labels PDF URL to image URLs array');
+    }
 
     // Prepare Lamatic API request
     const lamatic_api_key = process.env.LAMATIC_API_KEY;
@@ -215,7 +270,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     const variables = {
       "workflowId": lamatic_workflow_id,
-      "imageurl": imageUrls,
+      "imageurl": allImageUrls,
       "coaurl": pdfUrl
     };
 

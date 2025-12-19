@@ -1,14 +1,18 @@
 // State management
 let selectedImages = [];
 let selectedPdf = null;
+let selectedLabelsPdf = null;
 
 // Get DOM elements
 const imageInput = document.getElementById('imageInput');
 const pdfInput = document.getElementById('pdfInput');
+const labelsPdfInput = document.getElementById('labelsPdfInput');
 const imageUploadArea = document.getElementById('imageUploadArea');
 const pdfUploadArea = document.getElementById('pdfUploadArea');
+const labelsPdfUploadArea = document.getElementById('labelsPdfUploadArea');
 const imagePreview = document.getElementById('imagePreview');
 const pdfPreview = document.getElementById('pdfPreview');
+const labelsPdfPreview = document.getElementById('labelsPdfPreview');
 const uploadForm = document.getElementById('uploadForm');
 const submitBtn = document.getElementById('submitBtn');
 const loadingState = document.getElementById('loadingState');
@@ -53,6 +57,26 @@ pdfUploadArea.addEventListener('drop', e => {
     pdfUploadArea.classList.remove('drag-over');
     const files = [...e.dataTransfer.files].filter(f => f.type === 'application/pdf');
     if (files.length > 0) handlePdfFile(files[0]);
+});
+
+// LABELS PDF file input
+labelsPdfUploadArea.addEventListener('click', () => labelsPdfInput.click());
+labelsPdfInput.addEventListener('change', e => {
+    if (e.target.files.length > 0) handleLabelsPdfFile(e.target.files[0]);
+});
+
+labelsPdfUploadArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    labelsPdfUploadArea.classList.add('drag-over');
+});
+
+labelsPdfUploadArea.addEventListener('dragleave', () => labelsPdfUploadArea.classList.remove('drag-over'));
+
+labelsPdfUploadArea.addEventListener('drop', e => {
+    e.preventDefault();
+    labelsPdfUploadArea.classList.remove('drag-over');
+    const files = [...e.dataTransfer.files].filter(f => f.type === 'application/pdf');
+    if (files.length > 0) handleLabelsPdfFile(files[0]);
 });
 
 // HANDLE IMAGES
@@ -136,6 +160,35 @@ function removePdf(e) {
     updateSubmitButton();
 }
 
+// HANDLE LABELS PDF
+function handleLabelsPdfFile(file) {
+    selectedLabelsPdf = file;
+    updateLabelsPdfPreview();
+    updateSubmitButton();
+}
+
+function updateLabelsPdfPreview() {
+    if (!selectedLabelsPdf) {
+        labelsPdfPreview.innerHTML = "";
+        return;
+    }
+
+    labelsPdfPreview.innerHTML = `
+        <div class="pdf-preview">
+            <strong>${selectedLabelsPdf.name}</strong>
+            <span>${formatFileSize(selectedLabelsPdf.size)}</span>
+            <button onclick="removeLabelsPdf(event)">Remove</button>
+        </div>`;
+}
+
+function removeLabelsPdf(e) {
+    e.preventDefault();
+    selectedLabelsPdf = null;
+    labelsPdfInput.value = "";
+    updateLabelsPdfPreview();
+    updateSubmitButton();
+}
+
 function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
@@ -143,7 +196,7 @@ function formatFileSize(bytes) {
 }
 
 function updateSubmitButton() {
-    submitBtn.disabled = !(selectedImages.length > 0); // Only images required, PDF is optional
+    submitBtn.disabled = !(selectedImages.length > 0 || selectedLabelsPdf); // At least one of images or labels PDF required
 }
 
 // HANDLE SUBMIT
@@ -157,6 +210,10 @@ uploadForm.addEventListener('submit', async e => {
     // PDF is optional - only add if selected
     if (selectedPdf) {
         formData.append("pdf", selectedPdf);
+    }
+    // Labels PDF is optional - only add if selected
+    if (selectedLabelsPdf) {
+        formData.append("labelsPdf", selectedLabelsPdf);
     }
 
     uploadForm.style.display = "none";
