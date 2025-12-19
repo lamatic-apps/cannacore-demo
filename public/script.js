@@ -149,6 +149,8 @@ function updateSubmitButton() {
 // HANDLE SUBMIT
 uploadForm.addEventListener('submit', async e => {
     e.preventDefault();
+    
+    // Clear previous results
     resultsSection.innerHTML = "";
     errorSection.innerHTML = "";
     errorSection.style.display = "none";
@@ -167,73 +169,112 @@ uploadForm.addEventListener('submit', async e => {
             body: formData
         });
         
-        console.log("Raw Response:", response);
-        const json = await response.json();
-        console.log("Full JSON Response:", JSON.stringify(json, null, 2));
-
-        // FIXED: Parse the correct path from Lamatic response
-        let issues = [];
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
         
-        // Try multiple possible paths
+        const json = await response.json();
+        console.log("=== FULL API RESPONSE ===");
+        console.log(JSON.stringify(json, null, 2));
+        console.log("=========================");
+
+        loadingState.style.display = "none";
+        uploadForm.style.display = "block";
+
+        // Extract issues - try all possible paths
+        let issues = null;
+        
         if (json?.data?.executeWorkflow?.result?.output?.issues) {
             issues = json.data.executeWorkflow.result.output.issues;
+            console.log("✓ Found issues at: data.executeWorkflow.result.output.issues");
         } else if (json?.result?.output?.issues) {
             issues = json.result.output.issues;
-        } else if (json?.result?.issues) {
-            issues = json.result.issues;
-        } else if (json?.issues) {
-            issues = json.issues;
+            console.log("✓ Found issues at: result.output.issues");
         } else if (json?.output?.issues) {
             issues = json.output.issues;
+            console.log("✓ Found issues at: output.issues");
+        } else if (json?.issues) {
+            issues = json.issues;
+            console.log("✓ Found issues at: issues");
         }
 
         console.log("Extracted issues:", issues);
+        console.log("Is array?", Array.isArray(issues));
+        console.log("Length:", issues ? issues.length : 'null');
 
-        loadingState.style.display = "none";
-        uploadForm.style.display = "block";
-        
-        if (Array.isArray(issues) && issues.length >= 0) {
+        if (Array.isArray(issues)) {
             displayIssues(issues);
         } else {
-            showError("Could not parse compliance issues from response. Check console for details.");
-            console.error("Could not find issues array in response:", json);
+            // Show raw JSON if we can't parse it
+            resultsSection.style.display = "block";
+            resultsSection.innerHTML = `
+                <h2>RAW API RESPONSE (Debug Mode)</h2>
+                <pre style="background:#f5f5f5;padding:15px;overflow:auto;max-height:400px;border:1px solid #ddd;">${JSON.stringify(json, null, 2)}</pre>
+            `;
+            showError("Could not parse issues array. Check console and raw response above.");
         }
 
     } catch (err) {
-        console.error("Error:", err);
+        console.error("❌ ERROR:", err);
         loadingState.style.display = "none";
         uploadForm.style.display = "block";
-        showError(err.message || "An error occurred while checking compliance");
+        showError(`Error: ${err.message}`);
     }
 });
 
 // DISPLAY ISSUES ON SAME PAGE
 function displayIssues(issues) {
+    console.log("displayIssues called with:", issues);
+    
     resultsSection.style.display = "block";
-    resultsSection.innerHTML = `<h2>COMPLIANCE REPORT</h2>`;
+    resultsSection.innerHTML = `<h2 style="color:#333;margin-bottom:20px;">COMPLIANCE REPORT</h2>`;
 
-    if (issues.length === 0) {
-        resultsSection.innerHTML += "<div class='results-card' style='background:#d4edda;border-left:4px solid #28a745;'><p style='color:#155724;font-weight:bold;'>✓ No non-compliant issues found! Product appears to be compliant.</p></div>";
+    if (!issues || issues.length === 0) {
+        resultsSection.innerHTML += `
+            <div style="background:#d4edda;border-left:4px solid #28a745;padding:20px;border-radius:4px;">
+                <p style="color:#155724;font-weight:bold;margin:0;">✓ No non-compliant issues found!</p>
+            </div>`;
         return;
     }
 
-    resultsSection.innerHTML += `<p style="color:#721c24;font-weight:bold;margin-bottom:20px;">Found ${issues.length} compliance issue(s):</p>`;
+    resultsSection.innerHTML += `
+        <div style="background:#f8d7da;border-left:4px solid #dc3545;padding:15px;margin-bottom:20px;border-radius:4px;">
+            <p style="color:#721c24;font-weight:bold;margin:0;">Found ${issues.length} compliance issue(s)</p>
+        </div>`;
 
     issues.forEach((issue, index) => {
         const card = document.createElement("div");
-        card.className = "results-card";
+        card.style.cssText = "background:white;border:1px solid #ddd;border-radius:8px;padding:20px;margin-bottom:15px;box-shadow:0 2px 4px rgba(0,0,0,0.1);";
 
-        card.innerHTML = `
-            <h3 style="color:#721c24;margin-top:0;">Issue #${index + 1}</h3>
-            <p style="color:#721c24;font-weight:bold;margin-bottom:10px;">${issue.issue_identified || "No issue description"}</p>
-            <p><strong>Evidence:</strong> ${issue.evidence || "None provided"}</p>
-            <p><strong>Suggested Fix:</strong> ${issue.suggested_fix || "None provided"}</p>
-        `;
+        const title = document.createElement("h3");
+        title.style.cssText = "color:#dc3545;margin:0 0 15px 0;font-size:18px;";
+        title.textContent = `Issue #${index + 1}`;
+
+        const issueText = document.createElement("div");
+        issueText.style.cssText = "background:#fff3cd;border-left:3px solid #ffc107;padding:10px;margin-bottom:12px;";
+        issueText.innerHTML = `<strong>Issue:</strong> ${issue.issue_identified || "No description"}`;
+
+        const evidence = document.createElement("div");
+        evidence.style.cssText = "background:#f8f9fa;padding:10px;margin-bottom:12px;border-radius:4px;";
+        evidence.innerHTML = `<strong>Evidence:</strong> ${issue.evidence || "None provided"}`;
+
+        const fix = document.createElement("div");
+        fix.style.cssText = "background:#e7f3ff;border-left:3px solid #007bff;padding:10px;";
+        fix.innerHTML = `<strong>Suggested Fix:</strong> ${issue.suggested_fix || "None provided"}`;
+
+        card.appendChild(title);
+        card.appendChild(issueText);
+        card.appendChild(evidence);
+        card.appendChild(fix);
+        
         resultsSection.appendChild(card);
     });
 }
 
 function showError(msg) {
     errorSection.style.display = "block";
-    errorSection.innerHTML = `<p style="color:#721c24;padding:15px;background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;">${msg}</p>`;
+    errorSection.innerHTML = `
+        <div style="background:#f8d7da;border:1px solid #f5c6cb;border-radius:4px;padding:15px;color:#721c24;">
+            <strong>Error:</strong> ${msg}
+        </div>`;
 }
