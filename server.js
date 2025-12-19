@@ -282,19 +282,13 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     }
 
     // Handle nested output structure
-    // The API returns { output: { compliant_items, non_compliant_items, _meta }, requestId }
-    // Extract the relevant data from the nested structure
-    let responseData = result;
-    if (result && result.output) {
-      responseData = {
-        compliant_items: result.output.compliant_items || [],
-        non_compliant_items: result.output.non_compliant_items || []
-      };
-    }
-
+    // The API returns { output: { issues, coa, labels, _meta }, requestId }
+    // Pass through the entire result structure
+    console.log('Sending response to client with issues:', result?.output?.issues?.length || 0);
+    
     res.json({
       status: workflowResult.status,
-      result: responseData
+      result: result
     });
 
   } catch (error) {

@@ -166,35 +166,39 @@ uploadForm.addEventListener('submit', async e => {
         });
         const json = await response.json();
 
-        // --------- Robust issue extraction -----------
-        let issues = [];
-        if (json?.result?.output?.issues) {
-            issues = json.result.output.issues;
-        } else if (json?.result?.issues) {
-            issues = json.result.issues;
-        } else if (json?.issues) {
-            issues = json.issues;
-        } else {
-            // Deep search fallback
-            const search = obj => {
-                if (!obj || typeof obj !== 'object') return [];
-                if (Array.isArray(obj.issues)) return obj.issues;
-                for (const key in obj) {
-                    const found = search(obj[key]);
-                    if (found.length) return found;
-                }
-                return [];
-            };
-            issues = search(json);
-        }
+        console.log('Full API Response:', json);
+
+        // --------- Extract data from API response -----------
+        const output = json?.result?.output || {};
+        const result = json?.result || {};
+        
+        console.log('Output object:', output);
+        console.log('Result object:', result);
+        
+        const issues = output.issues || [];
+        const coaData = result.coa?.output || [];
+        const labelsData = result.labels?.output || [];
+
+        console.log('Extracted Issues:', issues);
+        console.log('Extracted COA Data:', coaData);
+        console.log('Extracted Labels Data:', labelsData);
+
         // --------- Display results -----------
         loadingState.style.display = "none";
+        resultsSection.style.display = "block";
+        resultsSection.innerHTML = ""; // Clear previous results
+        
+        // Display Issues
+        console.log('Calling displayIssues with', issues.length, 'issues');
         displayIssues(issues);
-
-        if (!issues || issues.length === 0) {
-            resultsSection.style.display = "block";
-            resultsSection.innerHTML = "<p>No non-compliant issues found</p>";
-        }
+        
+        // Display COA Results
+        console.log('Calling displayCOA with', coaData.length, 'items');
+        displayCOA(coaData);
+        
+        // Display Labels Results
+        console.log('Calling displayLabels with', labelsData.length, 'items');
+        displayLabels(labelsData);
     } catch (err) {
         loadingState.style.display = "none";
         uploadForm.style.display = "block";
@@ -204,15 +208,20 @@ uploadForm.addEventListener('submit', async e => {
 
 // DISPLAY ISSUES ON SAME PAGE
 function displayIssues(issues) {
-    resultsSection.style.display = "block";
-    resultsSection.innerHTML = `<h2>NON-COMPLIANT ITEMS (${issues.length})</h2>`;
+    console.log('In displayIssues, issues:', issues);
+    const issuesDiv = document.createElement("div");
+    issuesDiv.className = "results-category";
+    issuesDiv.innerHTML = `<h2>NON-COMPLIANT ITEMS (${issues.length})</h2>`;
 
-    if (issues.length === 0) {
-        resultsSection.innerHTML += "<p>No non-compliant issues found</p>";
+    if (!issues || issues.length === 0) {
+        issuesDiv.innerHTML += "<p>No non-compliant issues found</p>";
+        resultsSection.appendChild(issuesDiv);
+        console.log('No issues to display');
         return;
     }
 
-    issues.forEach(issue => {
+    issues.forEach((issue, idx) => {
+        console.log('Processing issue', idx, issue);
         const card = document.createElement("div");
         card.className = "results-card";
 
@@ -221,8 +230,87 @@ function displayIssues(issues) {
             <p><strong>Evidence:</strong> ${issue.evidence || "None provided"}</p>
             <p><strong>Suggested Fix:</strong> ${issue.suggested_fix || "None provided"}</p>
         `;
-        resultsSection.appendChild(card);
+        issuesDiv.appendChild(card);
     });
+    
+    resultsSection.appendChild(issuesDiv);
+    console.log('Issues section appended');
+}
+
+// DISPLAY COA RESULTS
+function displayCOA(coaData) {
+    console.log('In displayCOA, coaData:', coaData);
+    const coaDiv = document.createElement("div");
+    coaDiv.className = "results-category";
+    coaDiv.innerHTML = `<h2>CERTIFICATE OF ANALYSIS (COA) COMPLIANCE</h2>`;
+
+    if (!coaData || coaData.length === 0) {
+        coaDiv.innerHTML += "<p>No COA data available</p>";
+        resultsSection.appendChild(coaDiv);
+        console.log('No COA data to display');
+        return;
+    }
+
+    let validItemCount = 0;
+    coaData.forEach((item, idx) => {
+        console.log('Processing COA item', idx, item);
+        if (!item || Object.keys(item).length === 0) return; // Skip empty objects
+        validItemCount++;
+        
+        const card = document.createElement("div");
+        card.className = "results-card";
+        
+        const compliantStatus = item.compliant ? "✓ COMPLIANT" : "✗ NON-COMPLIANT";
+        const statusColor = item.compliant ? "green" : "red";
+        
+        card.innerHTML = `
+            <p style="color:${statusColor};font-weight:bold;">${compliantStatus}</p>
+            <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
+            <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
+        `;
+        coaDiv.appendChild(card);
+    });
+    
+    resultsSection.appendChild(coaDiv);
+    console.log('COA section appended with', validItemCount, 'valid items');
+}
+
+// DISPLAY LABELS RESULTS
+function displayLabels(labelsData) {
+    console.log('In displayLabels, labelsData:', labelsData);
+    const labelsDiv = document.createElement("div");
+    labelsDiv.className = "results-category";
+    labelsDiv.innerHTML = `<h2>PACKAGING & LABELS COMPLIANCE</h2>`;
+
+    if (!labelsData || labelsData.length === 0) {
+        labelsDiv.innerHTML += "<p>No labels data available</p>";
+        resultsSection.appendChild(labelsDiv);
+        console.log('No labels data to display');
+        return;
+    }
+
+    let validItemCount = 0;
+    labelsData.forEach((item, idx) => {
+        console.log('Processing labels item', idx, item);
+        if (!item || Object.keys(item).length === 0) return; // Skip empty objects
+        validItemCount++;
+        
+        const card = document.createElement("div");
+        card.className = "results-card";
+        
+        const compliantStatus = item.compliant ? "✓ COMPLIANT" : "✗ NON-COMPLIANT";
+        const statusColor = item.compliant ? "green" : "red";
+        
+        card.innerHTML = `
+            <p style="color:${statusColor};font-weight:bold;">${compliantStatus}</p>
+            <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
+            <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
+        `;
+        labelsDiv.appendChild(card);
+    });
+    
+    resultsSection.appendChild(labelsDiv);
+    console.log('Labels section appended with', validItemCount, 'valid items');
 }
 
 function showError(msg) {
