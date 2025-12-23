@@ -104,6 +104,18 @@
                     card.appendChild(txt);
                 }
 
+                // Ref
+                if (issue.ref) {
+                    const label = document.createElement("p");
+                    label.textContent = "Reference:";
+                    label.style.fontWeight = "600";
+                    card.appendChild(label);
+
+                    const txt = document.createElement("p");
+                    txt.textContent = issue.ref;
+                    card.appendChild(txt);
+                }
+
                 container.appendChild(card);
             });
         }

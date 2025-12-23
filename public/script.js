@@ -289,6 +289,7 @@ function displayIssues(issues) {
             <p style="color:red;font-weight:bold;">${issue.issue_identified || issue.reason || "Unspecified issue"}</p>
             <p><strong>Evidence:</strong> ${issue.evidence || "None provided"}</p>
             <p><strong>Suggested Fix:</strong> ${issue.suggested_fix || "None provided"}</p>
+            ${issue.ref ? `<p><strong>Reference:</strong> ${issue.ref}</p>` : ""}
         `;
         issuesDiv.appendChild(card);
     });
@@ -327,6 +328,7 @@ function displayCOA(coaData) {
             <p style="color:${statusColor};font-weight:bold;">${compliantStatus}</p>
             <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
+            ${item.ref ? `<p style="color:black;"><strong>Reference:</strong> ${item.ref}</p>` : ""}
         `;
         coaDiv.appendChild(card);
     });
@@ -365,6 +367,7 @@ function displayLabels(labelsData) {
             <p style="color:${statusColor};font-weight:bold;">${compliantStatus}</p>
             <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
+            ${item.ref ? `<p style="color:black;"><strong>Reference:</strong> ${item.ref}</p>` : ""}
         `;
         labelsDiv.appendChild(card);
     });
