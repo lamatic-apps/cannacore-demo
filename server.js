@@ -125,12 +125,13 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
           throw new Error(`Failed to upload image: ${imageError.message}`);
         }
         
-        // Get public URL
-        const { data: imageUrlData } = supabase.storage
+        // Get signed URL (valid for 1 hour)
+        const { data: imageUrlData, error: signError } = await supabase.storage
           .from('cannacore')
-          .getPublicUrl(imagePath);
+          .createSignedUrl(imagePath, 3600);
         
-        imageUrls.push(imageUrlData.publicUrl);
+        if (signError) throw new Error(`Failed to generate signed URL: ${signError.message}`);
+        imageUrls.push(imageUrlData.signedUrl);
         uploadedImagePaths.push(imagePath);
       }
     } else {
@@ -165,12 +166,13 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
         throw new Error(`Failed to upload PDF: ${pdfError.message}`);
       }
       
-      // Get public URL for PDF
-      const { data: pdfUrlData } = supabase.storage
+      // Get signed URL for PDF (valid for 1 hour)
+      const { data: pdfUrlData, error: pdfSignError } = await supabase.storage
         .from('cannacore')
-        .getPublicUrl(pdfPath);
+        .createSignedUrl(pdfPath, 3600);
       
-      pdfUrl = pdfUrlData.publicUrl;
+      if (pdfSignError) throw new Error(`Failed to generate signed PDF URL: ${pdfSignError.message}`);
+      pdfUrl = pdfUrlData.signedUrl;
       allUploadedPaths.push(pdfPath);
     } else {
       console.log('No PDF uploaded - using default COA URL');
@@ -206,12 +208,13 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
         throw new Error(`Failed to upload labels PDF: ${labelsPdfError.message}`);
       }
       
-      // Get public URL for labels PDF
-      const { data: labelsPdfUrlData } = supabase.storage
+      // Get signed URL for labels PDF (valid for 1 hour)
+      const { data: labelsPdfUrlData, error: labelsPdfSignError } = await supabase.storage
         .from('cannacore')
-        .getPublicUrl(labelsPdfPath);
+        .createSignedUrl(labelsPdfPath, 3600);
       
-      labelsPdfUrl = labelsPdfUrlData.publicUrl;
+      if (labelsPdfSignError) throw new Error(`Failed to generate signed labels PDF URL: ${labelsPdfSignError.message}`);
+      labelsPdfUrl = labelsPdfUrlData.signedUrl;
       allUploadedPaths.push(labelsPdfPath);
     } else {
       console.log('No labels PDF uploaded');
