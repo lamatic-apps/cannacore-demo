@@ -289,13 +289,13 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       query ExecuteWorkflow(
         $workflowId: String!
         $imageurl: [String]
-        $coaurl: String        
+        $coalink: String        
       ) {
         executeWorkflow(
           workflowId: $workflowId
           payload: {
             imageurl: $imageurl
-            coaurl: $coaurl
+            coalink: $coalink
           }
         ) {
           status
@@ -306,7 +306,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     const variables = {
       "workflowId": lamatic_workflow_id,
       "imageurl": allImageUrls,
-      "coaurl": pdfUrl
+      "coalink": pdfUrl
     };
 
     const options = {
