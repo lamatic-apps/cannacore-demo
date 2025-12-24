@@ -301,6 +301,9 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       response = await axios(options);
       console.log('Lamatic API response:', JSON.stringify(response.data, null, 2));
     } catch (error) {
+      console.error('Lamatic API Error - Status:', error.response?.status);
+      console.error('Lamatic API Error - Message:', error.response?.statusText);
+      console.error('Lamatic API Error - Data:', JSON.stringify(error.response?.data, null, 2));
       apiError = error;
     } finally {
       // Cleanup files from Supabase after API call (whether success or failure)
