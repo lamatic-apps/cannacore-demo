@@ -410,7 +410,7 @@ function displayCOA(coaData) {
         card.innerHTML = `
             <p style="color:black;"><strong>Ref:</strong> ${item.ref || "N/A"}</p>
             <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
-            <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
+            <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
             ${item.suggested_fix ? `<p style="color:black;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
         `;
@@ -466,7 +466,7 @@ function displayLabels(labelsData) {
         card.innerHTML = `
             <p style="color:black;"><strong>Ref:</strong> ${item.ref || "N/A"}</p>
             <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
-            <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
+            <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
             ${item.suggested_fix ? `<p style="color:black;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
         `;
