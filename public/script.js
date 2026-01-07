@@ -224,6 +224,22 @@ uploadForm.addEventListener('submit', async e => {
             method: "POST",
             body: formData
         });
+
+        console.log('Response Status:', response.status);
+        console.log('Response Headers:', response.headers);
+        console.log('Response OK:', response.ok);
+
+        if (!response.ok) {
+            let errorData;
+            try {
+                errorData = await response.json();
+            } catch (e) {
+                errorData = await response.text();
+            }
+            console.error('Error response:', errorData);
+            throw new Error(errorData.error || `Server error: ${response.status} ${response.statusText}`);
+        }
+
         const json = await response.json();
 
         console.log('Full API Response:', json);
