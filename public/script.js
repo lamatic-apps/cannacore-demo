@@ -421,6 +421,9 @@ function displayCOA(coaData) {
         } else if (item.compliant === false) {
             complianceStatus = "✗ NON-COMPLIANT";
             statusColor = "red";
+        } else if (item.compliant === "human review" || item.compliant === "human_review") {
+            complianceStatus = "⚠ HUMAN REVIEW";
+            statusColor = "orange";
         }
         
         card.innerHTML = `
@@ -474,7 +477,7 @@ function displayLabels(labelsData) {
         } else if (compliantValue === false || compliantValue === "false") {
             complianceStatus = "✗ NON-COMPLIANT";
             statusColor = "red";
-        } else if (compliantValue === "human_review") {
+        } else if (compliantValue === "human_review" || compliantValue === "human review") {
             complianceStatus = "⚠ HUMAN REVIEW";
             statusColor = "orange";
         }
