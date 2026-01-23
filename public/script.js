@@ -485,7 +485,7 @@ function displayLabels(labelsData) {
         card.innerHTML = `
             <p style="color:black;"><strong>Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
             <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
-            <p style="color:black;"><strong>Reason:</strong> ${item.reason || "None provided"}</p>
+            <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
             ${item.suggested_fix ? `<p style="color:black;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
         `;
@@ -506,6 +506,12 @@ function getRefWithHyperlink(ref) {
         url = "https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0581/Sections/0581.217.html";
     } else if (ref.includes("5K-4.034")) {
         url = "https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-5K-4-034";
+    } else if (ref.includes("101.2")) {
+        url = "https://www.ecfr.gov/current/title-21/part-101/section-101.2#p-101.2(c)(1)(ii)(B)(3)(iii)";
+    } else if (ref.includes("101.5")) {
+        url = "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-B/part-101/subpart-A/section-101.5";
+    } else if (ref.includes("101.9")) {
+        url = "https://www.ecfr.gov/current/title-21/part-101#p-101.9(j)(15)(iii)";
     }
     
     if (url) {
