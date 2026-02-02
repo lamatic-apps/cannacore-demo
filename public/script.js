@@ -400,6 +400,7 @@ function displayCOA(coaData) {
     }
 
     let validItemCount = 0;
+    let serialNumber = 0;
     coaData.forEach((item, idx) => {
         console.log('Processing COA item', idx, item);
         // Skip empty objects or objects without required fields
@@ -407,6 +408,7 @@ function displayCOA(coaData) {
             return;
         }
         validItemCount++;
+        serialNumber++;
         
         const card = document.createElement("div");
         card.className = "results-card";
@@ -427,7 +429,7 @@ function displayCOA(coaData) {
         }
         
         card.innerHTML = `
-            <p style="color:black;"><strong>Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
+            <p style="color:black;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
             <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
             <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
@@ -455,6 +457,7 @@ function displayLabels(labelsData) {
     }
 
     let validItemCount = 0;
+    let serialNumber = 0;
     labelsData.forEach((item, idx) => {
         console.log('Processing labels item', idx, item);
         // Skip empty objects or objects without required fields
@@ -462,6 +465,7 @@ function displayLabels(labelsData) {
             return;
         }
         validItemCount++;
+        serialNumber++;
         
         const card = document.createElement("div");
         card.className = "results-card";
@@ -483,7 +487,7 @@ function displayLabels(labelsData) {
         }
         
         card.innerHTML = `
-            <p style="color:black;"><strong>Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
+            <p style="color:black;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
             <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
             <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
             <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
