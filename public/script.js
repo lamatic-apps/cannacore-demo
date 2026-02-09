@@ -317,7 +317,7 @@ async function pollForResults(requestId) {
     while (true) {
         pollCount++;
 
-        loadingState.innerHTML = `<div class="loading-spinner"></div><p>Checking compliance...<br/>(attempt ${pollCount})</p>`;
+        loadingState.innerHTML = `<div class="loading-spinner"></div><p>Checking compliance...</p>`;
 
         await new Promise(resolve => setTimeout(resolve, pollInterval));
 
