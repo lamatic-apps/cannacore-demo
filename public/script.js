@@ -343,8 +343,6 @@ async function pollForResults(requestId) {
         }
     }
 }
-    }
-});
 
 // DISPLAY HEADER
 function displayHeader(companyName, productType, date, time, output, overallStatus, allProductNames, totalConcerns) {
