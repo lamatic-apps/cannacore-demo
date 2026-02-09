@@ -154,6 +154,15 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     }
 
     console.log('=== LAMATIC API CALL ===');
+    
+    const lamaticApiKey = process.env.LAMATIC_API_KEY;
+    const workflowId = process.env.LAMATIC_WORKFLOW_ID;
+    const lamaticApiUrl = process.env.LAMATIC_API_URL;
+
+    if (!lamaticApiKey || !workflowId || !lamaticApiUrl) {
+      throw new Error('Lamatic API key, workflow ID, or API URL is missing. Check environment variables.');
+    }
+
     console.log('API URL:', lamaticApiUrl);
     console.log('Workflow ID:', workflowId);
     console.log('API Key (first 10 chars):', lamaticApiKey?.substring(0, 10) + '...');
@@ -175,14 +184,6 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     };
     
     console.log('Request Payload:', JSON.stringify(requestPayload).substring(0, 500) + '...');
-
-    const lamaticApiKey = process.env.LAMATIC_API_KEY;
-    const workflowId = process.env.LAMATIC_WORKFLOW_ID;
-    const lamaticApiUrl = process.env.LAMATIC_API_URL;
-
-    if (!lamaticApiKey || !workflowId || !lamaticApiUrl) {
-      throw new Error('Lamatic API key, workflow ID, or API URL is missing. Check environment variables.');
-    }
 
     const graphqlQuery = `
       query runComplianceCheck(
