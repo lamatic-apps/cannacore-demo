@@ -253,12 +253,80 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       throw new Error('No output from Lamatic API');
     }
 
-    let parsedOutput = result;
-    if (typeof result === 'string') {
+    // Get requestId for polling
+    const requestId = result.requestId;
+    if (!requestId) {
+      throw new Error('No requestId returned from Lamatic - cannot poll for results');
+    }
+
+    console.log('Starting polling for results with requestId:', requestId);
+
+    // Poll for results with exponential backoff
+    const maxWaitTime = 55000; // 55 seconds (Vercel timeout is 60s)
+    const maxPolls = 30;
+    let pollCount = 0;
+    let finalResult = null;
+    const startTime = Date.now();
+
+    const getResultQuery = `
+      query getWorkflowResult($requestId: String!) {
+        getWorkflowResult(requestId: $requestId) {
+          status
+          result
+        }
+      }
+    `;
+
+    while (pollCount < maxPolls && (Date.now() - startTime) < maxWaitTime) {
+      pollCount++;
+      const delay = Math.min(1000 * pollCount, 5000); // Exponential backoff: 1s, 2s, 3s, 4s, 5s...
+      
+      console.log(`Poll ${pollCount}: Waiting ${delay}ms before checking results...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      const pollResponse = await axios.post(lamaticApiUrl, {
+        query: getResultQuery,
+        variables: { requestId: requestId }
+      }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${lamaticApiKey}`,
+          'x-project-id': projectId
+        },
+        timeout: 60000,
+        validateStatus: () => true
+      });
+
+      console.log(`Poll ${pollCount} Response Status:`, pollResponse.status);
+      
+      const pollResult = pollResponse.data.data?.getWorkflowResult;
+      console.log(`Poll ${pollCount} Result:`, JSON.stringify(pollResult, null, 2));
+
+      if (pollResponse.status === 200 && pollResult) {
+        if (pollResult.status === 'success' && pollResult.result) {
+          console.log('Results ready! Stopping polls.');
+          finalResult = pollResult.result;
+          break;
+        } else if (pollResult.status === 'failed' || pollResult.status === 'error') {
+          throw new Error(`Lamatic workflow failed: ${pollResult.status}`);
+        }
+        // If still processing, continue polling
+        console.log(`Poll ${pollCount}: Status is ${pollResult.status}, continuing...`);
+      }
+    }
+
+    if (!finalResult) {
+      throw new Error(`Lamatic workflow did not complete within ${maxWaitTime}ms (${pollCount} polls)`);
+    }
+
+    console.log('Final parsed result:', JSON.stringify(finalResult, null, 2));
+
+    let parsedOutput = finalResult;
+    if (typeof finalResult === 'string') {
       try {
-        parsedOutput = JSON.parse(result);
+        parsedOutput = JSON.parse(finalResult);
       } catch (e) {
-        console.error('Failed to parse Lamatic output:', result);
+        console.error('Failed to parse Lamatic output:', finalResult);
         throw new Error('Could not parse Lamatic API response');
       }
     }
