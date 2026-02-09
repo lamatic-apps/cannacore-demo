@@ -154,6 +154,27 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     }
 
     console.log('=== LAMATIC API CALL ===');
+    console.log('API URL:', lamaticApiUrl);
+    console.log('Workflow ID:', workflowId);
+    console.log('API Key (first 10 chars):', lamaticApiKey?.substring(0, 10) + '...');
+    
+    const requestPayload = {
+      query: graphqlQuery,
+      variables: {
+        lamaticApiKey: lamaticApiKey,
+        workflowId: workflowId,
+        imageUrls: imageUrls,
+        jurisdictions: jurisdictions,
+        coaurl: pdfUrls.length > 0 ? pdfUrls : ["https://cdn.shopify.com/s/files/1/0665/8188/9159/files/Blueberry_-_Mega_Smasher_s.pdf?v=1764824884"],
+        labelurl: allImageUrls,
+        date: dateStr,
+        time: timeStr,
+        company_name: companyName,
+        product_type: productType
+      }
+    };
+    
+    console.log('Request Payload:', JSON.stringify(requestPayload).substring(0, 500) + '...');
 
     const lamaticApiKey = process.env.LAMATIC_API_KEY;
     const workflowId = process.env.LAMATIC_WORKFLOW_ID;
@@ -201,21 +222,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     const companyName = req.body.company_name || 'N/A';
     const productType = req.body.product_type || 'N/A';
 
-    const response = await axios.post(lamaticApiUrl, {
-      query: graphqlQuery,
-      variables: {
-        lamaticApiKey: lamaticApiKey,
-        workflowId: workflowId,
-        imageUrls: imageUrls,
-        jurisdictions: jurisdictions,
-        coaurl: pdfUrls.length > 0 ? pdfUrls : ["https://cdn.shopify.com/s/files/1/0665/8188/9159/files/Blueberry_-_Mega_Smasher_s.pdf?v=1764824884"],
-        labelurl: allImageUrls,
-        date: dateStr,
-        time: timeStr,
-        company_name: companyName,
-        product_type: productType
-      }
-    }, {
+    const response = await axios.post(lamaticApiUrl, requestPayload, {
       headers: {
         'Content-Type': 'application/json',
       },
