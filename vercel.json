@@ -23,5 +23,14 @@
     "env": {
         "LAMATIC_API_KEY": "@lamatic_api_key",
         "LAMATIC_WORKFLOW_ID": "@lamatic_workflow_id"
+    },
+    "functions": {
+        "api/index.js": {
+            "maxDuration": 60,
+            "memory": 3008
+        }
+    },
+    "engines": {
+        "node": "20.x"
     }
 }
