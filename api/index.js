@@ -67,6 +67,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     if (typeof jurisdictions === 'string') {
       jurisdictions = [jurisdictions];
     }
+    console.log('DEBUG: jurisdictions after conversion:', jurisdictions, 'Type:', typeof jurisdictions);
 
     console.log('=== VERCEL BLOB UPLOAD ===');
     console.log('Uploading files to Vercel Blob Storage...');
