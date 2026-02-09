@@ -310,12 +310,12 @@ uploadForm.addEventListener('submit', async e => {
 // Function to poll for results
 async function pollForResults(requestId) {
     let pollCount = 0;
-    const pollInterval = 2 * 60 * 1000; // 2 minutes = 120,000ms
+    const pollInterval = 1 * 60 * 1000; // 1 minute = 60,000ms
 
     while (true) {
         pollCount++;
 
-        loadingState.innerHTML = `<div class="loading-spinner"></div><p>Processing compliance check...<br/>Checking status (attempt ${pollCount} - next check in 2 min)...</p>`;
+        loadingState.innerHTML = `<div class="loading-spinner"></div><p>Processing compliance check...<br/>Checking status (attempt ${pollCount} - next check in 1 min)...</p>`;
 
         await new Promise(resolve => setTimeout(resolve, pollInterval));
 
