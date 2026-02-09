@@ -157,9 +157,10 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     const lamaticApiKey = process.env.LAMATIC_API_KEY;
     const workflowId = process.env.LAMATIC_WORKFLOW_ID;
+    const lamaticApiUrl = process.env.LAMATIC_API_URL;
 
-    if (!lamaticApiKey || !workflowId) {
-      throw new Error('Lamatic API key or workflow ID is missing. Check environment variables.');
+    if (!lamaticApiKey || !workflowId || !lamaticApiUrl) {
+      throw new Error('Lamatic API key, workflow ID, or API URL is missing. Check environment variables.');
     }
 
     const graphqlQuery = `
@@ -200,7 +201,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     const companyName = req.body.company_name || 'N/A';
     const productType = req.body.product_type || 'N/A';
 
-    const response = await axios.post('https://api.lamatic.ai/graphql', {
+    const response = await axios.post(lamaticApiUrl, {
       query: graphqlQuery,
       variables: {
         lamaticApiKey: lamaticApiKey,
