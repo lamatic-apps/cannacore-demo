@@ -15,9 +15,5 @@
             "src": "/(.*)",
             "dest": "public/$1"
         }
-    ],
-    "env": {
-        "LAMATIC_API_KEY": "@lamatic_api_key",
-        "LAMATIC_WORKFLOW_ID": "@lamatic_workflow_id"
-    }
+    ]
 }
