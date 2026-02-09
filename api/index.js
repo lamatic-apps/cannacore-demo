@@ -317,6 +317,7 @@ app.get('/api/results/:requestId', async (req, res) => {
     console.log(`Results check Status:`, pollResponse.status);
     
     const pollResult = pollResponse.data.data?.getWorkflowResult;
+    console.log(`Full pollResponse.data:`, JSON.stringify(pollResponse.data, null, 2));
     console.log(`Results check Result:`, JSON.stringify(pollResult, null, 2));
 
     if (pollResponse.status === 200 && pollResult) {
