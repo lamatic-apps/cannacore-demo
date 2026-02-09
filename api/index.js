@@ -261,12 +261,9 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     console.log('Starting polling for results with requestId:', requestId);
 
-    // Poll for results with exponential backoff
-    const maxWaitTime = 55000; // 55 seconds (Vercel timeout is 60s)
-    const maxPolls = 30;
+    // Poll for results indefinitely until success or failure
     let pollCount = 0;
     let finalResult = null;
-    const startTime = Date.now();
 
     const getResultQuery = `
       query getWorkflowResult($requestId: String!) {
@@ -277,7 +274,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       }
     `;
 
-    while (pollCount < maxPolls && (Date.now() - startTime) < maxWaitTime) {
+    while (!finalResult) {
       pollCount++;
       const delay = Math.min(1000 * pollCount, 5000); // Exponential backoff: 1s, 2s, 3s, 4s, 5s...
       
@@ -316,7 +313,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     }
 
     if (!finalResult) {
-      throw new Error(`Lamatic workflow did not complete within ${maxWaitTime}ms (${pollCount} polls)`);
+      throw new Error(`Lamatic workflow did not complete after ${pollCount} polls`);
     }
 
     console.log('Final parsed result:', JSON.stringify(finalResult, null, 2));
