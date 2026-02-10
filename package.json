@@ -23,10 +23,13 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
+    "jpeg-js": "^0.4.4",
     "multer": "^2.0.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.4.624",
-    "sharp": "^0.34.5"
+    "png-js": "^1.0.0",
+    "sharp": "^0.34.5",
+    "zlib": "^1.0.5"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
