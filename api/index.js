@@ -505,8 +505,8 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
   }
 });
 
-// Helper function to split large PDFs into 50MB chunks for Gemini compatibility
-async function splitLargePdf(pdfUrl, maxSizeBytes = 50 * 1024 * 1024) {
+// Helper function to split large PDFs into 40MB chunks for Gemini compatibility (50MB limit with safety margin)
+async function splitLargePdf(pdfUrl, maxSizeBytes = 40 * 1024 * 1024) {
   try {
     console.log(`Checking PDF size at: ${pdfUrl}`);
     
@@ -517,23 +517,24 @@ async function splitLargePdf(pdfUrl, maxSizeBytes = 50 * 1024 * 1024) {
     
     console.log(`PDF size: ${(fileSize / 1024 / 1024).toFixed(2)}MB`);
     
-    // If under 50MB, return original URL
+    // If under 40MB, return original URL
     if (fileSize <= maxSizeBytes) {
       console.log('PDF is within limit, no splitting needed');
       return [pdfUrl];
     }
     
-    console.log('PDF exceeds 50MB limit, splitting into chunks...');
+    console.log('PDF exceeds 40MB limit, splitting into chunks...');
     
     // Load PDF
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const totalPages = pdfDoc.getPageCount();
     console.log(`Total pages: ${totalPages}`);
     
-    // Calculate pages per chunk (rough estimate: ~100KB per page average)
+    // More conservative: estimate 60KB per page to be safe
     const avgPageSize = fileSize / totalPages;
-    const pagesPerChunk = Math.max(1, Math.floor(maxSizeBytes / avgPageSize));
-    console.log(`Estimated pages per 50MB chunk: ${pagesPerChunk}`);
+    const estimatedPageSize = Math.max(avgPageSize, 60 * 1024); // At least 60KB per page
+    const pagesPerChunk = Math.max(1, Math.floor(maxSizeBytes / estimatedPageSize));
+    console.log(`Estimated ${estimatedPageSize / 1024}KB per page, ${pagesPerChunk} pages per chunk`);
     
     const chunkUrls = [];
     let page = 0;
@@ -555,9 +556,15 @@ async function splitLargePdf(pdfUrl, maxSizeBytes = 50 * 1024 * 1024) {
       
       // Serialize and upload
       const chunkBuffer = await chunkDoc.save();
-      const fileName = `pdf-chunks/${Date.now()}-chunk-${chunkIndex}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+      const chunkSizeMB = chunkBuffer.length / 1024 / 1024;
+      console.log(`Chunk ${chunkIndex + 1} size: ${chunkSizeMB.toFixed(2)}MB`);
       
-      console.log(`Uploading chunk ${chunkIndex + 1}: ${(chunkBuffer.length / 1024 / 1024).toFixed(2)}MB`);
+      if (chunkSizeMB > maxSizeBytes / (1024 * 1024)) {
+        console.warn(`⚠️ Chunk ${chunkIndex + 1} exceeded max size (${chunkSizeMB.toFixed(2)}MB > ${maxSizeBytes / (1024 * 1024)}MB)`);
+      }
+      
+      const fileName = `pdf-chunks/${Date.now()}-chunk-${chunkIndex}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+      console.log(`Uploading chunk ${chunkIndex + 1} to Blob...`);
       const blob = await put(fileName, chunkBuffer, {
         access: 'public',
         contentType: 'application/pdf'
