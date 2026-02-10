@@ -13,6 +13,10 @@ const app = express();
 // Trust proxy for Vercel
 app.set('trust proxy', 1);
 
+// In-memory chunk storage: { uploadId: { chunks: [Buffer, Buffer...], metadata: {...} } }
+const chunkStorage = new Map();
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
 // Rate limiting configuration
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -25,6 +29,7 @@ const apiLimiter = rateLimit({
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -347,6 +352,131 @@ app.get('/api/results/:requestId', async (req, res) => {
     res.status(500).json({
       error: error.message || 'An error occurred while checking results'
     });
+  }
+});
+
+// **CHUNKED FILE UPLOAD ENDPOINTS**
+
+// Upload a single file chunk
+app.post('/api/upload-chunk', express.raw({ type: 'application/octet-stream', limit: '10mb' }), (req, res) => {
+  try {
+    const { uploadId, chunkIndex, totalChunks, fileName, fileType } = req.query;
+    
+    if (!uploadId || chunkIndex === undefined || !totalChunks || !fileName) {
+      return res.status(400).json({ error: 'Missing required parameters' });
+    }
+
+    const chunk = req.body;
+    if (!chunk || chunk.length === 0) {
+      return res.status(400).json({ error: 'No chunk data provided' });
+    }
+
+    const index = parseInt(chunkIndex);
+    const total = parseInt(totalChunks);
+
+    console.log(`Received chunk ${index}/${total} for upload ${uploadId}, size: ${chunk.length} bytes`);
+
+    // Initialize storage for this upload if needed
+    if (!chunkStorage.has(uploadId)) {
+      chunkStorage.set(uploadId, {
+        chunks: new Array(total).fill(null),
+        metadata: { fileName, fileType, totalChunks: total, receivedChunks: 0 },
+        createdAt: Date.now()
+      });
+    }
+
+    const uploadData = chunkStorage.get(uploadId);
+    
+    // Store this chunk
+    if (uploadData.chunks[index] !== null) {
+      return res.status(400).json({ error: `Chunk ${index} already uploaded` });
+    }
+
+    uploadData.chunks[index] = chunk;
+    uploadData.metadata.receivedChunks++;
+
+    console.log(`Stored chunk ${index}. Progress: ${uploadData.metadata.receivedChunks}/${total}`);
+
+    res.json({
+      success: true,
+      uploadId,
+      chunkIndex: index,
+      receivedChunks: uploadData.metadata.receivedChunks,
+      totalChunks: total,
+      progress: Math.round((uploadData.metadata.receivedChunks / total) * 100)
+    });
+
+  } catch (error) {
+    console.error('Error uploading chunk:', error);
+    res.status(500).json({ error: error.message || 'Failed to upload chunk' });
+  }
+});
+
+// Finalize chunked upload and assemble file
+app.post('/api/finalize-chunks', express.json(), async (req, res) => {
+  try {
+    const { uploadId, fileType } = req.body;
+
+    if (!uploadId) {
+      return res.status(400).json({ error: 'Missing uploadId' });
+    }
+
+    const uploadData = chunkStorage.get(uploadId);
+    if (!uploadData) {
+      return res.status(404).json({ error: 'Upload not found' });
+    }
+
+    const { chunks, metadata } = uploadData;
+    const { fileName, totalChunks, receivedChunks } = metadata;
+
+    console.log(`Finalizing upload ${uploadId}: ${receivedChunks}/${totalChunks} chunks`);
+
+    // Check if all chunks received
+    if (receivedChunks !== totalChunks) {
+      return res.status(400).json({ 
+        error: `Not all chunks received. Got ${receivedChunks}/${totalChunks}` 
+      });
+    }
+
+    // Verify all chunks exist
+    if (chunks.some(chunk => chunk === null)) {
+      return res.status(400).json({ error: 'Some chunks are missing' });
+    }
+
+    // Assemble chunks
+    console.log('Assembling chunks...');
+    const assembledBuffer = Buffer.concat(chunks);
+    console.log(`Assembled buffer size: ${assembledBuffer.length} bytes`);
+
+    // Upload to Vercel Blob
+    const blobFileName = `${fileType}/${Date.now()}-${crypto.randomBytes(8).toString('hex')}-${fileName}`;
+    console.log(`Uploading to Vercel Blob: ${blobFileName}`);
+
+    const blob = await put(blobFileName, assembledBuffer, {
+      access: 'public',
+      contentType: 'application/pdf'
+    });
+
+    console.log(`File uploaded to Blob: ${blob.url}`);
+
+    // Clean up chunks from memory
+    chunkStorage.delete(uploadId);
+
+    res.json({
+      success: true,
+      uploadId,
+      url: blob.url,
+      fileName: blobFileName,
+      size: assembledBuffer.length
+    });
+
+  } catch (error) {
+    console.error('Error finalizing chunks:', error);
+    // Clean up on error
+    if (req.body.uploadId) {
+      chunkStorage.delete(req.body.uploadId);
+    }
+    res.status(500).json({ error: error.message || 'Failed to finalize upload' });
   }
 });
 

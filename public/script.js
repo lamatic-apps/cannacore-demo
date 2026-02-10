@@ -240,32 +240,132 @@ function updateSubmitButton() {
     submitBtn.disabled = !(selectedImages.length > 0 || selectedLabelsPdf) || selectedJurisdictions.length === 0;
 }
 
+// **CHUNKED FILE UPLOAD UTILITY**
+const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+
+async function uploadFileInChunks(file, fileType) {
+    const uploadId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+    let uploadedBytes = 0;
+
+    console.log(`Starting chunked upload: ${file.name}, ${totalChunks} chunks, ${CHUNK_SIZE / 1024 / 1024}MB per chunk`);
+
+    for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        console.log(`Uploading chunk ${i + 1}/${totalChunks}: ${start} - ${end} bytes`);
+        loadingState.innerHTML = `<div class="loading-spinner"></div><p>Uploading ${file.name}...<br/>${formatFileSize(end)} / ${formatFileSize(file.size)}</p>`;
+
+        try {
+            const response = await fetch('/api/upload-chunk?' + new URLSearchParams({
+                uploadId: uploadId,
+                chunkIndex: i,
+                totalChunks: totalChunks,
+                fileName: file.name,
+                fileType: fileType
+            }), {
+                method: 'POST',
+                body: chunk,
+                headers: {
+                    'Content-Type': 'application/octet-stream'
+                }
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `Failed to upload chunk ${i + 1}`);
+            }
+
+            const result = await response.json();
+            uploadedBytes = end;
+            console.log(`Chunk ${i + 1} uploaded successfully. Progress: ${result.progress}%`);
+
+        } catch (error) {
+            console.error(`Error uploading chunk ${i + 1}:`, error);
+            throw error;
+        }
+    }
+
+    // Finalize the upload
+    console.log('All chunks uploaded, finalizing...');
+    loadingState.innerHTML = `<div class="loading-spinner"></div><p>Finalizing ${file.name}...</p>`;
+
+    try {
+        const response = await fetch('/api/finalize-chunks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                uploadId: uploadId,
+                fileType: fileType
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to finalize upload');
+        }
+
+        const result = await response.json();
+        console.log(`File finalized and uploaded to: ${result.url}`);
+        return result.url;
+
+    } catch (error) {
+        console.error('Error finalizing upload:', error);
+        throw error;
+    }
+}
+
 // HANDLE SUBMIT
 uploadForm.addEventListener('submit', async e => {
     e.preventDefault();
     resultsSection.innerHTML = "";
     errorSection.innerHTML = "";
 
-    const formData = new FormData();
-    selectedImages.forEach(img => formData.append("images", img));
-    // COA PDF is optional - only add if selected
-    if (selectedPdfs) {
-        formData.append("pdf", selectedPdfs);
-    }
-    // Labels PDF is optional - only add if selected
-    if (selectedLabelsPdf) {
-        formData.append("labelsPdf", selectedLabelsPdf);
-    }
-    // Add selected jurisdictions
-    selectedJurisdictions.forEach(jurisdiction => {
-        formData.append("jurisdictions", jurisdiction);
-    });
-
     uploadForm.style.display = "none";
     loadingState.style.display = "block";
-    loadingState.innerHTML = '<div class="loading-spinner"></div><p>Submitting compliance check...</p>';
+    loadingState.innerHTML = '<div class="loading-spinner"></div><p>Preparing files...</p>';
 
     try {
+        // Upload images using multipart (usually small)
+        const formData = new FormData();
+        selectedImages.forEach(img => formData.append("images", img));
+        
+        // Check if PDFs are large and use chunking if needed
+        const LARGE_FILE_THRESHOLD = 2 * 1024 * 1024; // 2MB threshold for chunking
+        let pdfUrl = null;
+        let labelUrl = null;
+
+        // Upload COA PDF
+        if (selectedPdfs) {
+            console.log(`COA PDF size: ${selectedPdfs.size} bytes, Large file threshold: ${LARGE_FILE_THRESHOLD}`);
+            if (selectedPdfs.size > LARGE_FILE_THRESHOLD) {
+                console.log('Using chunked upload for COA PDF');
+                pdfUrl = await uploadFileInChunks(selectedPdfs, 'pdfs');
+            } else {
+                formData.append("pdf", selectedPdfs);
+            }
+        }
+
+        // Upload Labels PDF
+        if (selectedLabelsPdf) {
+            console.log(`Labels PDF size: ${selectedLabelsPdf.size} bytes`);
+            if (selectedLabelsPdf.size > LARGE_FILE_THRESHOLD) {
+                console.log('Using chunked upload for Labels PDF');
+                labelUrl = await uploadFileInChunks(selectedLabelsPdf, 'labels-pdfs');
+            } else {
+                formData.append("labelsPdf", selectedLabelsPdf);
+            }
+        }
+
+        // Add selected jurisdictions
+        selectedJurisdictions.forEach(jurisdiction => {
+            formData.append("jurisdictions", jurisdiction);
+        });
+
+        loadingState.innerHTML = '<div class="loading-spinner"></div><p>Submitting compliance check...</p>';
+
         const response = await fetch("/api/check-compliance", {
             method: "POST",
             body: formData
