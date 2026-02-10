@@ -74,17 +74,17 @@
         function populateJurisdictionDropdown() {
             const select = document.getElementById("jurisdictionSelect");
             select.innerHTML = "";
-            
+
             // Add "All Jurisdictions" option
             const allOption = document.createElement("option");
             allOption.value = "ALL";
             allOption.textContent = "ALL JURISDICTIONS";
             select.appendChild(allOption);
-            
+
             // Extract unique jurisdictions
             const jurisdictions = (allCompliances.compliance_check || []).map(item => item.jurisdiction);
             const uniqueJurisdictions = [...new Set(jurisdictions)];
-            
+
             uniqueJurisdictions.forEach(jurisdiction => {
                 const option = document.createElement("option");
                 option.value = jurisdiction;
