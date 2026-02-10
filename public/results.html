@@ -354,11 +354,11 @@
         document.getElementById("downloadButton").addEventListener("click", async () => {
             const resultsSection = document.getElementById("resultsSection");
             const downloadButton = document.getElementById("downloadButton");
-            
+
             // Disable button during download
             downloadButton.disabled = true;
             downloadButton.textContent = "GENERATING WORD DOC...";
-            
+
             try {
                 const html = resultsSection.innerHTML;
                 const converted = HtmlDocxJs.convert({
@@ -372,7 +372,7 @@
                         }
                     }
                 });
-                
+
                 const timestamp = new Date().toISOString().split('T')[0];
                 converted.save(`compliance-report-${timestamp}.docx`);
             } catch (error) {
