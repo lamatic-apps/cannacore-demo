@@ -398,30 +398,65 @@ uploadForm.addEventListener('submit', async e => {
     loadingState.innerHTML = '<div class="loading-spinner"></div><p>Preparing files...</p>';
 
     try {
+        // Validate that at least images or labels are selected
+        if (selectedImages.length === 0 && !selectedLabelsPdf) {
+            throw new Error('Please upload either product images or labels PDF');
+        }
+
         const imageUrls = [];
         const pdfUrls = [];
         const labelUrls = [];
 
         // Upload all images via chunking (ensures compatibility)
-        for (const img of selectedImages) {
-            console.log(`Uploading image: ${img.name}`);
-            const url = await uploadFileInChunks(img, 'images');
-            imageUrls.push(url);
+        if (selectedImages.length > 0) {
+            console.log(`Uploading ${selectedImages.length} image(s)...`);
+            for (let idx = 0; idx < selectedImages.length; idx++) {
+                const img = selectedImages[idx];
+                console.log(`Uploading image ${idx + 1}/${selectedImages.length}: ${img.name}`);
+                loadingState.innerHTML = `<div class="loading-spinner"></div><p>Uploading image ${idx + 1}/${selectedImages.length}...<br/>${img.name}</p>`;
+                
+                try {
+                    const url = await uploadFileInChunks(img, 'images');
+                    imageUrls.push(url);
+                    console.log(`Image ${idx + 1} uploaded successfully: ${url}`);
+                } catch (imgError) {
+                    console.error(`Failed to upload image ${idx + 1}:`, imgError);
+                    throw imgError;
+                }
+            }
+        } else {
+            console.log('No images selected');
         }
 
         // Upload COA PDF via chunking
         if (selectedPdfs) {
             console.log(`Uploading COA PDF: ${selectedPdfs.name}`);
-            const url = await uploadFileInChunks(selectedPdfs, 'pdfs');
-            pdfUrls.push(url);
+            loadingState.innerHTML = `<div class="loading-spinner"></div><p>Uploading COA PDF...<br/>${selectedPdfs.name}</p>`;
+            try {
+                const url = await uploadFileInChunks(selectedPdfs, 'pdfs');
+                pdfUrls.push(url);
+                console.log(`COA PDF uploaded successfully: ${url}`);
+            } catch (pdfError) {
+                console.error('Failed to upload COA PDF:', pdfError);
+                throw pdfError;
+            }
         }
 
         // Upload Labels PDF via chunking
         if (selectedLabelsPdf) {
             console.log(`Uploading Labels PDF: ${selectedLabelsPdf.name}`);
-            const url = await uploadFileInChunks(selectedLabelsPdf, 'labels-pdfs');
-            labelUrls.push(url);
+            loadingState.innerHTML = `<div class="loading-spinner"></div><p>Uploading Labels PDF...<br/>${selectedLabelsPdf.name}</p>`;
+            try {
+                const url = await uploadFileInChunks(selectedLabelsPdf, 'labels-pdfs');
+                labelUrls.push(url);
+                console.log(`Labels PDF uploaded successfully: ${url}`);
+            } catch (labelError) {
+                console.error('Failed to upload Labels PDF:', labelError);
+                throw labelError;
+            }
         }
+
+        console.log(`All files uploaded. Images: ${imageUrls.length}, PDFs: ${pdfUrls.length}, Labels: ${labelUrls.length}`);
 
         loadingState.innerHTML = '<div class="loading-spinner"></div><p>Submitting compliance check...</p>';
 
