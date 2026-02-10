@@ -297,7 +297,6 @@
                 card.innerHTML = `
                     <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><strong>${index + 1} Ref:</strong> ${refLink}</p>
                     <p style="color:${statusColor};font-weight:bold; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;">${complianceStatus}</p>
-                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><strong>Product Name:</strong> ${item.product_name || "N/A"}</p>
                     <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
                     <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
                     ${item.suggested_fix ? `<p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
