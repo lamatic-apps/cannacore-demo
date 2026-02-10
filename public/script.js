@@ -270,6 +270,15 @@ async function uploadFileInChunks(file, fileType) {
                     'Content-Type': 'application/octet-stream'
                 },
                 body: chunk
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || `Failed to upload chunk ${i + 1}`);
+            }
+
+            const result = await response.json();
+            uploadedBytes = end;
             console.log(`Chunk ${i + 1} uploaded successfully. Progress: ${result.progress}%`);
 
         } catch (error) {
