@@ -513,10 +513,10 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
   }
 });
 
-// Compress PDF - split large files into smaller chunks
+// Compress PDF - extract embedded images and re-encode at lower quality
 async function compressPdf(pdfBuffer) {
   try {
-    console.log('[COMPRESS] Starting PDF optimization...');
+    console.log('[COMPRESS] Starting aggressive image re-encoding...');
     const original = pdfBuffer.length / 1024 / 1024;
     console.log(`[COMPRESS] Original: ${original.toFixed(2)}MB`);
     
@@ -524,49 +524,104 @@ async function compressPdf(pdfBuffer) {
     const pageCount = srcDoc.getPageCount();
     console.log(`[COMPRESS] Pages: ${pageCount}`);
     
-    // If over 50MB and has multiple pages, split immediately
-    if (pdfBuffer.length > 50 * 1024 * 1024 && pageCount > 1) {
-      console.log('[COMPRESS] Large multi-page PDF detected - splitting...');
+    // Try to extract and re-encode embedded images
+    try {
+      const context = srcDoc.context;
+      const objects = context.catalogue;
       
-      // Calculate pages per chunk to get roughly 40MB each
-      const targetChunkSize = 40 * 1024 * 1024;
-      const estimatedPagesPerChunk = Math.max(1, Math.floor(pageCount * (targetChunkSize / pdfBuffer.length)));
-      const chunks = [];
-      let currentPage = 0;
+      // Find all Image xobjects
+      const pages = srcDoc.getPages();
+      let recodedCount = 0;
       
-      while (currentPage < pageCount) {
-        const endPage = Math.min(currentPage + estimatedPagesPerChunk, pageCount);
-        console.log(`[COMPRESS] Creating chunk: pages ${currentPage + 1}-${endPage}...`);
-        
-        const chunk = await PDFDocument.create();
-        const indices = Array.from({length: endPage - currentPage}, (_, i) => currentPage + i);
-        const pages = await chunk.copyPages(srcDoc, indices);
-        pages.forEach(p => chunk.addPage(p));
-        
-        const chunkBuffer = await chunk.save({ useObjectStreams: true });
-        chunks.push(chunkBuffer);
-        console.log(`[COMPRESS] Chunk size: ${(chunkBuffer.length / 1024 / 1024).toFixed(2)}MB`);
-        
-        currentPage = endPage;
+      for (const page of pages) {
+        try {
+          const resources = page.node.Resources;
+          if (resources) {
+            const xobjects = resources.get('XObject');
+            if (xobjects && xobjects.dictionary) {
+              for (const [name, xobjRef] of Object.entries(xobjects.dictionary || {})) {
+                try {
+                  const xobj = context.lookup(xobjRef);
+                  if (xobj && xobj.dict && xobj.dict.get('Subtype')?.name === 'Image') {
+                    // Try to get image stream
+                    const stream = xobj.getContents ? xobj.getContents() : xobj.contents;
+                    if (stream && stream.length > 0) {
+                      console.log(`[COMPRESS] Found image: ${name}, size: ${(stream.length / 1024 / 1024).toFixed(2)}MB`);
+                      
+                      // Try to re-encode with sharp
+                      try {
+                        const reencoded = await sharp(stream)
+                          .resize(1200, 800, { fit: 'inside', withoutEnlargement: true })
+                          .jpeg({ quality: 50, progressive: true, mozjpeg: true })
+                          .toBuffer();
+                        
+                        console.log(`[COMPRESS] Re-encoded to: ${(reencoded.length / 1024 / 1024).toFixed(2)}MB`);
+                        recodedCount++;
+                        
+                        // Try to replace in the PDF (this is risky)
+                        try {
+                          xobj.contents = reencoded;
+                          xobj.dict.set('Length', reencoded.length);
+                        } catch (setErr) {
+                          console.log('[COMPRESS] Could not update image in PDF');
+                        }
+                      } catch (sharpErr) {
+                        console.log('[COMPRESS] Sharp re-encoding failed:', sharpErr.message);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  // Skip individual xobject errors
+                }
+              }
+            }
+          }
+        } catch (pageErr) {
+          // Skip page errors
+        }
       }
       
-      const result = Buffer.concat(chunks);
-      console.log(`[COMPRESS] Split into ${chunks.length} chunks, total: ${(result.length / 1024 / 1024).toFixed(2)}MB`);
-      result._isSplit = true;
-      result._chunks = chunks;
-      return result;
+      console.log(`[COMPRESS] Re-encoded ${recodedCount} images`);
+    } catch (extractErr) {
+      console.log('[COMPRESS] Image extraction failed:', extractErr.message);
     }
     
-    // Single page or under 50MB - just rebuild with compression
-    console.log('[COMPRESS] Rebuilding and compressing...');
+    // Rebuild and save
     const newDoc = await PDFDocument.create();
     const indices = Array.from({length: pageCount}, (_, i) => i);
     const pages = await newDoc.copyPages(srcDoc, indices);
     pages.forEach(p => newDoc.addPage(p));
     
-    const compressed = await newDoc.save({ useObjectStreams: true });
+    const compressed = await newDoc.save({ 
+      useObjectStreams: true,
+      compress: true,
+      compressStreams: true
+    });
+    
     const ratio = ((1 - compressed.length / pdfBuffer.length) * 100).toFixed(1);
-    console.log(`[COMPRESS] ${original.toFixed(2)}MB → ${(compressed.length / 1024 / 1024).toFixed(2)}MB (${ratio}% reduction)`);
+    console.log(`[COMPRESS] Final: ${original.toFixed(2)}MB → ${(compressed.length / 1024 / 1024).toFixed(2)}MB (${ratio}% reduction)`);
+    
+    // If still over 40MB, try splitting (unlikely for single page but worth trying)
+    if (compressed.length > 40 * 1024 * 1024 && pageCount > 1) {
+      console.log('[COMPRESS] Still large - splitting...');
+      const chunkSize = Math.max(1, Math.floor(pageCount / 2));
+      const chunks = [];
+      
+      for (let i = 0; i < pageCount; i += chunkSize) {
+        const end = Math.min(i + chunkSize, pageCount);
+        const chunk = await PDFDocument.create();
+        const indices = Array.from({length: end - i}, (_, j) => i + j);
+        const pages = await chunk.copyPages(srcDoc, indices);
+        pages.forEach(p => chunk.addPage(p));
+        const buf = await chunk.save({ useObjectStreams: true });
+        chunks.push(buf);
+        console.log(`[COMPRESS] Chunk ${chunks.length}: ${(buf.length / 1024 / 1024).toFixed(2)}MB`);
+      }
+      const split = Buffer.concat(chunks);
+      split._isSplit = true;
+      split._chunks = chunks;
+      return split;
+    }
     
     return compressed;
   } catch (error) {
