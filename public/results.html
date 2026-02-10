@@ -60,24 +60,31 @@
             console.log("Loaded results:", parsed);
             allCompliances = parsed;
 
-            // Extract jurisdictions from compliance_check
-            const jurisdictions = (parsed.compliance_check || []).map(item => item.jurisdiction);
-
-            if (jurisdictions.length > 0) {
-                populateJurisdictionDropdown(jurisdictions);
-                selectedJurisdiction = jurisdictions[0];
-                document.getElementById("jurisdictionSelectorContainer").style.display = "block";
-                renderComplianceResults(selectedJurisdiction);
+            // Render all compliance data from all jurisdictions
+            if (parsed.compliance_check && parsed.compliance_check.length > 0) {
+                // Populate dropdown and show it
+                populateJurisdictionDropdown();
+                // Default to showing all jurisdictions
+                renderComplianceResults("ALL");
             } else {
                 document.getElementById("resultsSection").innerHTML = "<p>No compliance data found.</p>";
             }
         });
 
-        function populateJurisdictionDropdown(jurisdictions) {
+        function populateJurisdictionDropdown() {
             const select = document.getElementById("jurisdictionSelect");
             select.innerHTML = "";
-            // Deduplicate jurisdictions using Set
+            
+            // Add "All Jurisdictions" option
+            const allOption = document.createElement("option");
+            allOption.value = "ALL";
+            allOption.textContent = "ALL JURISDICTIONS";
+            select.appendChild(allOption);
+            
+            // Extract unique jurisdictions
+            const jurisdictions = (allCompliances.compliance_check || []).map(item => item.jurisdiction);
             const uniqueJurisdictions = [...new Set(jurisdictions)];
+            
             uniqueJurisdictions.forEach(jurisdiction => {
                 const option = document.createElement("option");
                 option.value = jurisdiction;
@@ -85,52 +92,70 @@
                 select.appendChild(option);
             });
 
+            // Show the selector
+            document.getElementById("jurisdictionSelectorContainer").style.display = "block";
+
             select.addEventListener("change", (e) => {
-                selectedJurisdiction = e.target.value;
-                renderComplianceResults(selectedJurisdiction);
+                renderComplianceResults(e.target.value);
             });
         }
 
-        function renderComplianceResults(jurisdiction) {
+        function renderComplianceResults(selectedJurisdiction) {
             const resultsSection = document.getElementById("resultsSection");
             resultsSection.innerHTML = "";
 
-            // Find ALL compliance data for the selected jurisdiction
-            const complianceItems = (allCompliances.compliance_check || []).filter(
-                item => item.jurisdiction === jurisdiction
-            );
+            // Group by jurisdiction
+            const jurisdictionMap = {};
+            (allCompliances.compliance_check || []).forEach(item => {
+                if (!jurisdictionMap[item.jurisdiction]) {
+                    jurisdictionMap[item.jurisdiction] = [];
+                }
+                jurisdictionMap[item.jurisdiction].push(item);
+            });
 
-            if (complianceItems.length === 0) {
-                resultsSection.innerHTML = "<p>No data found for selected jurisdiction.</p>";
-                return;
+            // Filter jurisdictions if not "ALL"
+            let jurisdictionsToDisplay = Object.entries(jurisdictionMap);
+            if (selectedJurisdiction !== "ALL") {
+                jurisdictionsToDisplay = jurisdictionsToDisplay.filter(([jurisdiction]) => jurisdiction === selectedJurisdiction);
             }
 
-            // Display header (use first item for metadata)
-            displayHeader(allCompliances, complianceItems[0]);
+            // Display each jurisdiction
+            jurisdictionsToDisplay.forEach(([jurisdiction, complianceItems]) => {
+                // Jurisdiction header
+                const jurisdictionHeader = document.createElement("div");
+                jurisdictionHeader.style.marginBottom = "30px";
+                jurisdictionHeader.style.paddingBottom = "20px";
+                jurisdictionHeader.style.borderBottom = "3px solid #007bff";
+                jurisdictionHeader.innerHTML = `<h2 style="font-size: 1.8rem; color: #007bff; margin-bottom: 10px;">JURISDICTION: ${jurisdiction.toUpperCase()}</h2>`;
+                resultsSection.appendChild(jurisdictionHeader);
 
-            // Display each product under this jurisdiction
-            complianceItems.forEach((complianceItem, productIndex) => {
-                // Display merged product key
-                if (complianceItem.merged_product_key) {
-                    const keyDiv = document.createElement("div");
-                    keyDiv.style.marginBottom = "20px";
-                    keyDiv.style.marginTop = productIndex > 0 ? "40px" : "0";
-                    keyDiv.style.paddingTop = productIndex > 0 ? "20px" : "0";
-                    keyDiv.style.borderTop = productIndex > 0 ? "2px solid #ddd" : "none";
-                    const capitalizedProduct = complianceItem.merged_product_key.toUpperCase();
-                    keyDiv.innerHTML = `<p style="font-size: 1.3rem; font-weight: bold; color: #333;"><strong>PRODUCT:</strong> ${capitalizedProduct}</p>`;
-                    resultsSection.appendChild(keyDiv);
-                }
+                // Display header info (use first item for metadata)
+                displayHeader(allCompliances, complianceItems[0]);
 
-                // Display Label Review
-                if (complianceItem.label && complianceItem.label.length > 0) {
-                    displayLabelReview(complianceItem.label);
-                }
+                // Display each product under this jurisdiction
+                complianceItems.forEach((complianceItem, productIndex) => {
+                    // Display merged product key
+                    if (complianceItem.merged_product_key) {
+                        const keyDiv = document.createElement("div");
+                        keyDiv.style.marginBottom = "20px";
+                        keyDiv.style.marginTop = productIndex > 0 ? "40px" : "0";
+                        keyDiv.style.paddingTop = productIndex > 0 ? "20px" : "0";
+                        keyDiv.style.borderTop = productIndex > 0 ? "2px solid #ddd" : "none";
+                        const capitalizedProduct = complianceItem.merged_product_key.toUpperCase();
+                        keyDiv.innerHTML = `<p style="font-size: 1.3rem; font-weight: bold; color: #333;"><strong>PRODUCT:</strong> ${capitalizedProduct}</p>`;
+                        resultsSection.appendChild(keyDiv);
+                    }
 
-                // Display COA Review
-                if (complianceItem.coa && complianceItem.coa.length > 0) {
-                    displayCOAReview(complianceItem.coa);
-                }
+                    // Display Label Review
+                    if (complianceItem.label && complianceItem.label.length > 0) {
+                        displayLabelReview(complianceItem.label);
+                    }
+
+                    // Display COA Review
+                    if (complianceItem.coa && complianceItem.coa.length > 0) {
+                        displayCOAReview(complianceItem.coa);
+                    }
+                });
             });
         }
 
