@@ -21,7 +21,6 @@ body {
     word-wrap: break-word;
     overflow-wrap: break-word;
     white-space: normal;
-    min-height: auto;
     overflow: visible;
 }
 
@@ -30,9 +29,11 @@ body {
     line-height: 1.7;
     word-wrap: break-word;
     overflow-wrap: break-word;
-    white-space: pre-wrap;
+    white-space: normal;
     color: black;
     font-size: 0.95rem;
+    max-width: 100%;
+    display: block;
 }
 
 .results-category {
