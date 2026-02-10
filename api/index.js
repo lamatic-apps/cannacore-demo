@@ -346,6 +346,38 @@ app.get('/api/results/:requestId', async (req, res) => {
       if (pollResult.success && pollResult.status === 'success') {
         // Extract the actual result from nested structure
         const actualResult = pollResult.data?.output?.result || pollResult.data;
+        
+        // Trigger cleanup of uploaded files after successful completion
+        setImmediate(async () => {
+          try {
+            const uploadedData = uploadedFilesMap.get(requestId);
+            if (uploadedData) {
+              const urlsToDelete = [
+                ...uploadedData.imageUrls,
+                ...uploadedData.coaUrls
+              ].filter(url => url && url.includes('blob.vercel-storage.com'));
+              
+              if (urlsToDelete.length > 0) {
+                console.log(`[CLEANUP] Deleting ${urlsToDelete.length} files for requestId ${requestId}...`);
+                
+                for (const url of urlsToDelete) {
+                  try {
+                    await del(url);
+                    console.log(`[CLEANUP] Deleted: ${url.substring(0, 50)}...`);
+                  } catch (err) {
+                    console.error(`[CLEANUP] Failed to delete ${url.substring(0, 50)}:`, err.message);
+                  }
+                }
+                
+                uploadedFilesMap.delete(requestId);
+                console.log('[CLEANUP] Done');
+              }
+            }
+          } catch (cleanupErr) {
+            console.error('[CLEANUP] Error:', cleanupErr.message);
+          }
+        });
+        
         return res.json({
           success: true,
           status: 'success',
