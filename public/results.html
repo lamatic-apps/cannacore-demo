@@ -355,16 +355,16 @@
             try {
                 const htmlContent = resultsSection.innerText || resultsSection.textContent;
                 const contentLines = htmlContent.split('\n').filter(line => line.trim());
-                
+
                 const { Document, Packer, Paragraph, AlignmentType, convertInchesToTwip } = window.docx;
-                
+
                 const paragraphs = contentLines.map(line => {
                     return new Paragraph({
                         text: line.trim(),
                         spacing: { after: 100 }
                     });
                 });
-                
+
                 const doc = new Document({
                     sections: [{
                         properties: {
@@ -378,7 +378,7 @@
                         children: paragraphs
                     }]
                 });
-                
+
                 const timestamp = new Date().toISOString().split('T')[0];
                 Packer.toBlob(doc).then(blob => {
                     const url = window.URL.createObjectURL(blob);
