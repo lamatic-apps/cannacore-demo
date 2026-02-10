@@ -400,39 +400,6 @@ uploadForm.addEventListener('submit', async e => {
             const result = json?.result || json;
             sessionStorage.setItem("complianceResults", JSON.stringify(result));
             window.location.href = "/results.html";
-            body: formData
-        });
-
-        console.log('Response Status:', response.status);
-        console.log('Response Headers:', response.headers);
-        console.log('Response OK:', response.ok);
-
-        if (!response.ok) {
-            let errorData;
-            try {
-                const text = await response.text();
-                errorData = JSON.parse(text);
-            } catch (e) {
-                errorData = { error: `Server error: ${response.status} ${response.statusText}` };
-            }
-            console.error('Error response:', errorData);
-            throw new Error(errorData.error || `Server error: ${response.status} ${response.statusText}`);
-        }
-
-        const json = await response.json();
-        console.log('API Response:', json);
-
-        // Check if we got a requestId (async response)
-        if (json.requestId && json.status === 'pending') {
-            console.log('Got requestId, starting polling:', json.requestId);
-            // Show checking compliance spinner immediately
-            loadingState.innerHTML = '<div class="loading-spinner"></div><p>Checking compliance...</p>';
-            await pollForResults(json.requestId);
-        } else {
-            // Synchronous response with results
-            const result = json?.result || json;
-            sessionStorage.setItem("complianceResults", JSON.stringify(result));
-            window.location.href = "/results.html";
         }
     } catch (err) {
         loadingState.style.display = "none";
