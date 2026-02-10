@@ -505,7 +505,36 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
   }
 });
 
-// Compress PDF by rendering pages as images, reducing quality, then recreating PDF
+// Compress PDF by extracting and rebuilding with compression
+async function compressPdf(pdfBuffer) {
+  try {
+    console.log('[COMPRESS] Loading and rebuilding PDF...');
+    const original = pdfBuffer.length / 1024 / 1024;
+    
+    // Load source PDF
+    const srcDoc = await PDFDocument.load(pdfBuffer);
+    const pageCount = srcDoc.getPageCount();
+    
+    // Create new document and copy all pages
+    const newDoc = await PDFDocument.create();
+    const pages = await newDoc.copyPages(srcDoc, Array.from({length: pageCount}, (_, i) => i));
+    pages.forEach(page => newDoc.addPage(page));
+    
+    // Save with compression settings
+    const compressed = await newDoc.save({
+      useObjectStreams: true,  // Compress object streams
+      addDefaultPage: false,    // Don't add blank page
+      objectsPerTick: 50        // More objects per batch = smaller output
+    });
+    
+    const ratio = ((1 - compressed.length / pdfBuffer.length) * 100).toFixed(1);
+    console.log(`[COMPRESS] ${original.toFixed(2)}MB → ${(compressed.length / 1024 / 1024).toFixed(2)}MB (${ratio}% reduction)`);
+    return compressed;
+  } catch (error) {
+    console.error('[COMPRESS] Failed:', error.message);
+    return pdfBuffer;
+  }
+}
 
 // API endpoint for compliance check with pre-uploaded URLs
 app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, res) => {
@@ -529,10 +558,56 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
       return res.status(500).json({ error: 'Missing Lamatic configuration' });
     }
 
-    // Just send URLs as-is, no compression
     let jurisdictionsArray = Array.isArray(jurisdictions) ? jurisdictions : [jurisdictions];
     let imageUrlArray = Array.isArray(imageurl) ? imageurl : [imageurl];
     let coaUrlArray = coaurl ? (Array.isArray(coaurl) ? coaurl : [coaurl]) : [];
+
+    // Compress PDFs if present
+    console.log('[COMPRESS] Processing files...');
+    const compressedImageUrls = [];
+    for (const url of imageUrlArray) {
+      if (url.includes('.pdf')) {
+        try {
+          const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
+          const pdfBuffer = Buffer.from(response.data);
+          const compressed = await compressPdf(pdfBuffer);
+          
+          const fileName = `compressed/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+          const blob = await put(fileName, compressed, { access: 'public', contentType: 'application/pdf' });
+          compressedImageUrls.push(blob.url);
+          console.log(`[COMPRESS] Image PDF compressed: ${blob.url}`);
+        } catch (err) {
+          console.error('[COMPRESS] Image PDF error:', err.message);
+          compressedImageUrls.push(url); // Fall back to original
+        }
+      } else {
+        compressedImageUrls.push(url);
+      }
+    }
+
+    const compressedCoaUrls = [];
+    for (const url of coaUrlArray) {
+      if (url.includes('.pdf')) {
+        try {
+          const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
+          const pdfBuffer = Buffer.from(response.data);
+          const compressed = await compressPdf(pdfBuffer);
+          
+          const fileName = `compressed/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
+          const blob = await put(fileName, compressed, { access: 'public', contentType: 'application/pdf' });
+          compressedCoaUrls.push(blob.url);
+          console.log(`[COMPRESS] COA PDF compressed: ${blob.url}`);
+        } catch (err) {
+          console.error('[COMPRESS] COA PDF error:', err.message);
+          compressedCoaUrls.push(url); // Fall back to original
+        }
+      } else {
+        compressedCoaUrls.push(url);
+      }
+    }
+
+    imageUrlArray = compressedImageUrls;
+    coaUrlArray = compressedCoaUrls;
 
     console.log('=== LAMATIC API CALL ===');
     console.log('Image URLs:', imageUrlArray);
