@@ -8,8 +8,6 @@ const rateLimit = require('express-rate-limit');
 const { put } = require('@vercel/blob');
 const crypto = require('crypto');
 const { PDFDocument } = require('pdf-lib');
-const sharp = require('sharp');
-const pdfjs = require('pdfjs-dist');
 
 const app = express();
 
@@ -508,70 +506,6 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
 });
 
 // Compress PDF by rendering pages as images, reducing quality, then recreating PDF
-async function compressLargePdf(pdfBuffer) {
-  try {
-    console.log('[COMPRESS] Starting image-based compression...');
-    const originalSize = pdfBuffer.length / 1024 / 1024;
-    console.log(`[COMPRESS] Original: ${originalSize.toFixed(2)}MB`);
-    
-    // Set pdfjs worker
-    pdfjs.GlobalWorkerOptions.workerSrc = require('pdfjs-dist/build/pdf.worker.mjs');
-    
-    // Load PDF document
-    const pdf = await pdfjs.getDocument({ data: pdfBuffer }).promise;
-    const pageCount = pdf.numPages;
-    console.log(`[COMPRESS] Pages: ${pageCount}`);
-    
-    const compressedDoc = await PDFDocument.create();
-    const scale = 1.5; // Render at 1.5x normal quality
-    const quality = 70; // JPEG quality 70
-    
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
-      console.log(`[COMPRESS] Processing page ${pageNum}/${pageCount}...`);
-      
-      const page = await pdf.getPage(pageNum);
-      const viewport = page.getViewport({ scale });
-      
-      // Render page to canvas
-      const canvas = await new Promise((resolve, reject) => {
-        const { createCanvas } = require('canvas');
-        const canvas = createCanvas(viewport.width, viewport.height);
-        const context = canvas.getContext('2d');
-        
-        page.render({
-          canvasContext: context,
-          viewport: viewport
-        }).promise.then(() => resolve(canvas)).catch(reject);
-      });
-      
-      // Convert canvas to buffer
-      const imageBuffer = canvas.toBuffer('image/jpeg', { quality });
-      
-      // Compress with sharp (reduce resolution slightly)
-      const compressedImage = await sharp(imageBuffer)
-        .resize(Math.floor(viewport.width * 0.9), Math.floor(viewport.height * 0.9), { fit: 'inside', withoutEnlargement: true })
-        .jpeg({ quality: 65, progressive: true })
-        .toBuffer();
-      
-      // Create a PDFPage from the image
-      const embeddedImage = await compressedDoc.embedJpg(compressedImage);
-      const dims = embeddedImage.scale(0.95);
-      const pdfPage = compressedDoc.addPage([dims.width, dims.height]);
-      pdfPage.drawImage(embeddedImage, { x: 0, y: 0, width: dims.width, height: dims.height });
-    }
-    
-    const compressed = await compressedDoc.save();
-    const compressedSize = compressed.length / 1024 / 1024;
-    const ratio = ((1 - compressed.length / pdfBuffer.length) * 100).toFixed(1);
-    
-    console.log(`[COMPRESS] Compressed: ${compressedSize.toFixed(2)}MB (${ratio}% reduction)`);
-    return compressed;
-    
-  } catch (error) {
-    console.error('[COMPRESS] Error:', error.message);
-    return pdfBuffer; // Return original on error
-  }
-}
 
 // API endpoint for compliance check with pre-uploaded URLs
 app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, res) => {
@@ -595,70 +529,14 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
       return res.status(500).json({ error: 'Missing Lamatic configuration' });
     }
 
-    // Just send URLs as-is, no splitting
+    // Just send URLs as-is, no compression
     let jurisdictionsArray = Array.isArray(jurisdictions) ? jurisdictions : [jurisdictions];
     let imageUrlArray = Array.isArray(imageurl) ? imageurl : [imageurl];
     let coaUrlArray = coaurl ? (Array.isArray(coaurl) ? coaurl : [coaurl]) : [];
 
-    // Compress PDFs for Gemini compatibility
-    console.log('[API] Checking for PDFs to compress...');
-    
-    const processedImageUrls = [];
-    for (const url of imageUrlArray) {
-      if (url.includes('.pdf')) {
-        try {
-          console.log(`[API] Downloading PDF: ${url.substring(0, 50)}...`);
-          const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
-          const originalBuffer = Buffer.from(response.data);
-          
-          console.log(`[API] Original size: ${(originalBuffer.length / 1024 / 1024).toFixed(2)}MB`);
-          const compressed = await compressLargePdf(originalBuffer);
-          
-          // Upload compressed PDF
-          const fileName = `compressed-pdfs/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
-          const blob = await put(fileName, compressed, { access: 'public', contentType: 'application/pdf' });
-          processedImageUrls.push(blob.url);
-          console.log(`[API] Compressed and uploaded: ${blob.url}`);
-        } catch (err) {
-          console.error(`[API] Compression failed for ${url}, using original:`, err.message);
-          processedImageUrls.push(url);
-        }
-      } else {
-        processedImageUrls.push(url);
-      }
-    }
-
-    const processedCoaUrls = [];
-    for (const url of coaUrlArray) {
-      if (url.includes('.pdf')) {
-        try {
-          console.log(`[API] Downloading COA PDF: ${url.substring(0, 50)}...`);
-          const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 60000 });
-          const originalBuffer = Buffer.from(response.data);
-          
-          console.log(`[API] Original COA size: ${(originalBuffer.length / 1024 / 1024).toFixed(2)}MB`);
-          const compressed = await compressLargePdf(originalBuffer);
-          
-          // Upload compressed PDF
-          const fileName = `compressed-pdfs/${Date.now()}-${crypto.randomBytes(4).toString('hex')}.pdf`;
-          const blob = await put(fileName, compressed, { access: 'public', contentType: 'application/pdf' });
-          processedCoaUrls.push(blob.url);
-          console.log(`[API] Compressed COA and uploaded: ${blob.url}`);
-        } catch (err) {
-          console.error(`[API] Compression failed for COA ${url}, using original:`, err.message);
-          processedCoaUrls.push(url);
-        }
-      } else {
-        processedCoaUrls.push(url);
-      }
-    }
-
-    imageUrlArray = processedImageUrls;
-    coaUrlArray = processedCoaUrls;
-
     console.log('=== LAMATIC API CALL ===');
-    console.log('Processed Image URLs:', imageUrlArray);
-    console.log('Processed COA URLs:', coaUrlArray);
+    console.log('Image URLs:', imageUrlArray);
+    console.log('COA URLs:', coaUrlArray);
     console.log('Jurisdictions:', jurisdictionsArray);
 
     const graphqlQuery = `
