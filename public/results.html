@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.js"></script>
+    <script src="https://unpkg.com/docx@8.5.0/build/index.js"></script>
 </head>
 
 <body>
@@ -355,19 +355,19 @@
                 const htmlContent = resultsSection.innerText || resultsSection.textContent;
                 const contentLines = htmlContent.split('\n').filter(line => line.trim());
 
-                // Wait for docx library to be available
-                const waitForDocx = () => {
-                    return new Promise((resolve) => {
-                        if (window.docx) {
-                            resolve(window.docx);
-                        } else {
-                            setTimeout(() => waitForDocx().then(resolve), 100);
-                        }
-                    });
-                };
+                // Wait for docx library with timeout
+                let attempts = 0;
+                const maxAttempts = 50; // 5 seconds max wait
+                while (!window.docx && attempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
 
-                const docxLib = await waitForDocx();
-                const { Document, Packer, Paragraph, convertInchesToTwip } = docxLib;
+                if (!window.docx) {
+                    throw new Error('Document library failed to load');
+                }
+
+                const { Document, Packer, Paragraph, convertInchesToTwip } = window.docx;
 
                 const paragraphs = contentLines.map(line => {
                     return new Paragraph({
@@ -406,7 +406,7 @@
             } finally {
                 // Re-enable button
                 downloadButton.disabled = false;
-                downloadButton.textContent = "DOWNLOAD OUTPUT";
+                downloadButton.textContent = "DOWNLOAD";
             }
         });
     </script>
