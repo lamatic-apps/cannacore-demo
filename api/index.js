@@ -505,36 +505,36 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
   }
 });
 
-// Helper function to split large PDFs into 40MB chunks for Gemini compatibility (50MB limit with safety margin)
-async function splitLargePdf(pdfUrl, maxSizeBytes = 40 * 1024 * 1024) {
+// Helper function to split large PDFs into chunks for Gemini compatibility (50MB limit with safety margin)
+async function splitLargePdf(pdfUrl, maxSizeBytes = 30 * 1024 * 1024) {  // 30MB max to be extra safe
   try {
-    console.log(`Checking PDF size at: ${pdfUrl}`);
+    console.log(`[PDF SPLIT] Checking PDF size at: ${pdfUrl}`);
     
     // Download the PDF
     const response = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
     const pdfBuffer = Buffer.from(response.data);
     const fileSize = pdfBuffer.length;
     
-    console.log(`PDF size: ${(fileSize / 1024 / 1024).toFixed(2)}MB`);
+    console.log(`[PDF SPLIT] PDF size: ${(fileSize / 1024 / 1024).toFixed(2)}MB, Max allowed: ${(maxSizeBytes / 1024 / 1024).toFixed(2)}MB`);
     
-    // If under 40MB, return original URL
+    // If under limit, return original URL
     if (fileSize <= maxSizeBytes) {
-      console.log('PDF is within limit, no splitting needed');
+      console.log('[PDF SPLIT] PDF is within limit, no splitting needed');
       return [pdfUrl];
     }
     
-    console.log('PDF exceeds 40MB limit, splitting into chunks...');
+    console.log('[PDF SPLIT] PDF exceeds limit, splitting into chunks...');
     
     // Load PDF
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const totalPages = pdfDoc.getPageCount();
-    console.log(`Total pages: ${totalPages}`);
+    console.log(`[PDF SPLIT] Total pages: ${totalPages}`);
     
-    // More conservative: estimate 60KB per page to be safe
-    const avgPageSize = fileSize / totalPages;
-    const estimatedPageSize = Math.max(avgPageSize, 60 * 1024); // At least 60KB per page
-    const pagesPerChunk = Math.max(1, Math.floor(maxSizeBytes / estimatedPageSize));
-    console.log(`Estimated ${estimatedPageSize / 1024}KB per page, ${pagesPerChunk} pages per chunk`);
+    // Calculate pages per chunk very conservatively
+    // Assume 100KB per page minimum to be safe
+    const minPageSize = 100 * 1024;
+    const pagesPerChunk = Math.max(1, Math.floor(maxSizeBytes / minPageSize));
+    console.log(`[PDF SPLIT] Assumed 100KB per page, ${pagesPerChunk} pages per chunk`);
     
     const chunkUrls = [];
     let page = 0;
@@ -543,9 +543,9 @@ async function splitLargePdf(pdfUrl, maxSizeBytes = 40 * 1024 * 1024) {
     // Split PDF into chunks
     while (page < totalPages) {
       const chunkDoc = await PDFDocument.create();
-      const endPage = Math.min(page + pagesPerChunk, totalPages);
+      let endPage = Math.min(page + pagesPerChunk, totalPages);
       
-      console.log(`Creating chunk ${chunkIndex + 1}: pages ${page + 1}-${endPage}`);
+      console.log(`[PDF SPLIT] Creating chunk ${chunkIndex + 1}: pages ${page + 1}-${endPage}`);
       
       // Copy pages to new document
       const pages = await chunkDoc.copyPages(pdfDoc, Array.from(
@@ -554,34 +554,48 @@ async function splitLargePdf(pdfUrl, maxSizeBytes = 40 * 1024 * 1024) {
       ));
       pages.forEach(p => chunkDoc.addPage(p));
       
-      // Serialize and upload
-      const chunkBuffer = await chunkDoc.save();
-      const chunkSizeMB = chunkBuffer.length / 1024 / 1024;
-      console.log(`Chunk ${chunkIndex + 1} size: ${chunkSizeMB.toFixed(2)}MB`);
+      // Serialize and check size
+      let chunkBuffer = await chunkDoc.save();
+      let chunkSizeMB = chunkBuffer.length / 1024 / 1024;
+      console.log(`[PDF SPLIT] Chunk ${chunkIndex + 1} serialized size: ${chunkSizeMB.toFixed(2)}MB`);
       
-      if (chunkSizeMB > maxSizeBytes / (1024 * 1024)) {
-        console.warn(`⚠️ Chunk ${chunkIndex + 1} exceeded max size (${chunkSizeMB.toFixed(2)}MB > ${maxSizeBytes / (1024 * 1024)}MB)`);
+      // If chunk is still too large, recursively split it
+      if (chunkBuffer.length > maxSizeBytes) {
+        console.warn(`[PDF SPLIT] ⚠️ Chunk ${chunkIndex + 1} too large (${chunkSizeMB.toFixed(2)}MB), re-splitting...`);
+        
+        // Reduce pages and try again
+        endPage = Math.max(page + 1, Math.floor((endPage - page) * 0.5) + page);
+        const smallerChunkDoc = await PDFDocument.create();
+        const smallerPages = await smallerChunkDoc.copyPages(pdfDoc, Array.from(
+          { length: endPage - page },
+          (_, i) => page + i
+        ));
+        smallerPages.forEach(p => smallerChunkDoc.addPage(p));
+        chunkBuffer = await smallerChunkDoc.save();
+        chunkSizeMB = chunkBuffer.length / 1024 / 1024;
+        console.log(`[PDF SPLIT] Re-sized chunk ${chunkIndex + 1}: ${chunkSizeMB.toFixed(2)}MB`);
       }
       
       const fileName = `pdf-chunks/${Date.now()}-chunk-${chunkIndex}-${crypto.randomBytes(4).toString('hex')}.pdf`;
-      console.log(`Uploading chunk ${chunkIndex + 1} to Blob...`);
+      console.log(`[PDF SPLIT] Uploading chunk ${chunkIndex + 1} (${chunkSizeMB.toFixed(2)}MB) to Blob...`);
       const blob = await put(fileName, chunkBuffer, {
         access: 'public',
         contentType: 'application/pdf'
       });
       
       chunkUrls.push(blob.url);
-      console.log(`Chunk ${chunkIndex + 1} uploaded: ${blob.url}`);
+      console.log(`[PDF SPLIT] Chunk ${chunkIndex + 1} uploaded ✓`);
       
       page = endPage;
       chunkIndex++;
     }
     
-    console.log(`PDF split into ${chunkUrls.length} chunks`);
+    console.log(`[PDF SPLIT] ✓ PDF split into ${chunkUrls.length} chunks`);
     return chunkUrls;
     
   } catch (error) {
-    console.error('Error splitting PDF:', error.message);
+    console.error('[PDF SPLIT] ✗ Error splitting PDF:', error.message);
+    console.error('[PDF SPLIT] Stack:', error.stack);
     // Return original URL if splitting fails
     return [pdfUrl];
   }
