@@ -5,7 +5,7 @@ const axios = require('axios');
 const path = require('path');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
-const { put } = require('@vercel/blob');
+const { put, del } = require('@vercel/blob');
 const crypto = require('crypto');
 const { PDFDocument } = require('pdf-lib');
 const sharp = require('sharp');
@@ -741,6 +741,29 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
 
     console.log('Workflow submitted with requestId:', requestId);
 
+    // Clean up uploaded files from Blob in the background (don't wait)
+    setImmediate(async () => {
+      try {
+        const urlsToDelete = [...imageUrlArray, ...coaUrlArray].filter(url => 
+          url && url.includes('blob.vercel-storage.com')
+        );
+        
+        console.log(`[CLEANUP] Deleting ${urlsToDelete.length} files from Blob...`);
+        
+        for (const url of urlsToDelete) {
+          try {
+            await del(url);
+            console.log(`[CLEANUP] Deleted: ${url.substring(0, 50)}...`);
+          } catch (err) {
+            console.error(`[CLEANUP] Failed to delete ${url.substring(0, 50)}:`, err.message);
+          }
+        }
+        console.log('[CLEANUP] Done');
+      } catch (cleanupErr) {
+        console.error('[CLEANUP] Error:', cleanupErr.message);
+      }
+    });
+
     res.json({
       success: true,
       status: 'pending',
@@ -750,6 +773,33 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
 
   } catch (error) {
     console.error('Error processing compliance check:', error);
+    
+    // Still try to clean up uploaded files even on error
+    if (imageUrlArray || coaUrlArray) {
+      setImmediate(async () => {
+        try {
+          const urlsToDelete = [...(imageUrlArray || []), ...(coaUrlArray || [])].filter(url => 
+            url && url.includes('blob.vercel-storage.com')
+          );
+          
+          if (urlsToDelete.length > 0) {
+            console.log(`[CLEANUP-ERROR] Deleting ${urlsToDelete.length} files from Blob...`);
+            
+            for (const url of urlsToDelete) {
+              try {
+                await del(url);
+                console.log(`[CLEANUP-ERROR] Deleted: ${url.substring(0, 50)}...`);
+              } catch (err) {
+                console.error(`[CLEANUP-ERROR] Failed to delete ${url.substring(0, 50)}:`, err.message);
+              }
+            }
+          }
+        } catch (cleanupErr) {
+          console.error('[CLEANUP-ERROR] Error:', cleanupErr.message);
+        }
+      });
+    }
+    
     res.status(500).json({
       error: error.response?.data?.errors?.[0]?.message || error.message || 'An error occurred while processing your request'
     });
