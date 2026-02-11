@@ -181,10 +181,21 @@
             return { complianceStatus, statusColor };
         }
 
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text || '').replace(/[&<>"']/g, m => map[m]);
+        }
+
         function getRefWithHyperlink(refValue, urlValue) {
             // If object has a url field, use it
             if (urlValue) {
-                return `<a href="${urlValue}" target="_blank" style="color: #007bff; text-decoration: underline;">${refValue}</a>`;
+                return `<a href="${urlValue}" target="_blank" style="color: #007bff; text-decoration: underline;">${escapeHtml(refValue)}</a>`;
             }
 
             // Fallback: Map known reference patterns to URLs
@@ -200,10 +211,10 @@
             }
 
             if (url) {
-                return `<a href="${url}" target="_blank" style="color: #007bff; text-decoration: underline;">${refValue}</a>`;
+                return `<a href="${url}" target="_blank" style="color: #007bff; text-decoration: underline;">${escapeHtml(refValue)}</a>`;
             }
 
-            return refValue;
+            return escapeHtml(refValue);
         }
 
         function calculateOverallComplianceStatus(complianceItem) {
@@ -297,9 +308,9 @@
                 card.innerHTML = `
                     <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>${index + 1} Ref:</strong> ${refLink}</p>
                     <p style="color:${statusColor};font-weight:bold; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;">${complianceStatus}</p>
-                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
-                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
-                    ${item.suggested_fix ? `<p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
+                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Rule Summary:</strong> ${escapeHtml(item.rule_summary || "None provided")}</p>
+                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Evidence:</strong> ${escapeHtml(item.evidence || "None provided")}</p>
+                    ${item.suggested_fix ? `<p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Suggested Fix:</strong> ${escapeHtml(item.suggested_fix)}</p>` : ""}
                 `;
                 labelDiv.appendChild(card);
             });
@@ -332,9 +343,9 @@
                 card.innerHTML = `
                     <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>${index + 1} Ref:</strong> ${refLink}</p>
                     <p style="color:${statusColor};font-weight:bold; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;">${complianceStatus}</p>
-                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
-                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
-                    ${item.suggested_fix ? `<p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
+                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Rule Summary:</strong> ${escapeHtml(item.rule_summary || "None provided")}</p>
+                    <p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Evidence:</strong> ${escapeHtml(item.evidence || "None provided")}</p>
+                    ${item.suggested_fix ? `<p style="color:black; word-wrap: break-word; overflow-wrap: break-word; white-space: normal; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box;"><strong>Suggested Fix:</strong> ${escapeHtml(item.suggested_fix)}</p>` : ""}
                 `;
                 coaDiv.appendChild(card);
             });
