@@ -18,10 +18,10 @@ body {
     border-radius: 10px;
     margin-bottom: 15px;
     border: 1px solid #ddd;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    white-space: normal;
     overflow: visible;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .results-card p {
@@ -32,8 +32,11 @@ body {
     white-space: normal;
     color: black;
     font-size: 0.95rem;
-    max-width: 100%;
+    width: 100%;
     display: block;
+    overflow: visible;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 .results-category {
