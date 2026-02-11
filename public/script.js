@@ -5,7 +5,7 @@ let selectedLabelsPdf = null;
 let selectedJurisdictions = [];
 
 // FILE SIZE VALIDATION CONSTANTS
-const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+const MAX_FILE_SIZE = 40 * 1024 * 1024; // 40 MB
 
 // Get DOM elements
 const imageInput = document.getElementById('imageInput');
@@ -126,7 +126,7 @@ function handleImageFiles(files) {
         if (file.type.startsWith('image/')) {
             // Validate file size
             if (!isFileSizeValid(file)) {
-                showError(`⚠️ File "${file.name}" is too large! Maximum size is 25 MB. Your file size: ${formatFileSize(file.size)}`);
+                showError(`⚠️ File "${file.name}" is too large! Maximum size is 40 MB. Your file size: ${formatFileSize(file.size)}`);
                 return;
             }
             selectedImages.push(file);
@@ -182,7 +182,7 @@ function handlePdfFiles(file) {
     if (file && file.type === 'application/pdf') {
         // Validate file size
         if (!isFileSizeValid(file)) {
-            showError(`⚠️ File "${file.name}" is too large! Maximum size is 25 MB. Your file size: ${formatFileSize(file.size)}`);
+            showError(`⚠️ File "${file.name}" is too large! Maximum size is 40 MB. Your file size: ${formatFileSize(file.size)}`);
             pdfInput.value = "";
             return;
         }
@@ -219,7 +219,7 @@ function removePdf(e) {
 function handleLabelsPdfFile(file) {
     // Validate file size
     if (!isFileSizeValid(file)) {
-        showError(`⚠️ File "${file.name}" is too large! Maximum size is 25 MB. Your file size: ${formatFileSize(file.size)}`);
+        showError(`⚠️ File "${file.name}" is too large! Maximum size is 40 MB. Your file size: ${formatFileSize(file.size)}`);
         labelsPdfInput.value = "";
         return;
     }
@@ -259,7 +259,7 @@ function formatFileSize(bytes) {
 // FILE SIZE VALIDATION
 function isFileSizeValid(file) {
     if (file.size > MAX_FILE_SIZE) {
-        console.warn(`File "${file.name}" exceeds maximum size of 25 MB. File size: ${formatFileSize(file.size)}`);
+        console.warn(`File "${file.name}" exceeds maximum size of 40 MB. File size: ${formatFileSize(file.size)}`);
         return false;
     }
     return true;
