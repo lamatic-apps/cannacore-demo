@@ -45,6 +45,13 @@ body {
     overflow: visible;
 }
 
+#resultsSection {
+    width: 100%;
+    overflow: visible;
+    display: block;
+    box-sizing: border-box;
+}
+
 .results-category h2 {
     font-size: 1.5rem;
     margin-bottom: 15px;

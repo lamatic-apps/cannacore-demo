@@ -633,11 +633,11 @@ function displayCOA(coaData) {
         }
         
         card.innerHTML = `
-            <p style="color:black;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
-            <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
-            <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
-            <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
-            ${item.suggested_fix ? `<p style="color:black;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
+            <p style="color:${statusColor};font-weight:bold; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">${complianceStatus}</p>
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
+            ${item.suggested_fix ? `<p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
         `;
         coaDiv.appendChild(card);
     });
@@ -691,11 +691,11 @@ function displayLabels(labelsData) {
         }
         
         card.innerHTML = `
-            <p style="color:black;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
-            <p style="color:${statusColor};font-weight:bold;">${complianceStatus}</p>
-            <p style="color:black;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
-            <p style="color:black;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
-            ${item.suggested_fix ? `<p style="color:black;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
+            <p style="color:${statusColor};font-weight:bold; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">${complianceStatus}</p>
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Rule Summary:</strong> ${item.rule_summary || "None provided"}</p>
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Evidence:</strong> ${item.evidence || "None provided"}</p>
+            ${item.suggested_fix ? `<p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Suggested Fix:</strong> ${item.suggested_fix}</p>` : ""}
         `;
         labelsDiv.appendChild(card);
     });
