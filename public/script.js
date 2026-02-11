@@ -4,6 +4,9 @@ let selectedPdfs = null;
 let selectedLabelsPdf = null;
 let selectedJurisdictions = [];
 
+// FILE SIZE VALIDATION CONSTANTS
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+
 // Get DOM elements
 const imageInput = document.getElementById('imageInput');
 const pdfInput = document.getElementById('pdfInput');
@@ -121,6 +124,11 @@ document.addEventListener('click', e => {
 function handleImageFiles(files) {
     for (const file of files) {
         if (file.type.startsWith('image/')) {
+            // Validate file size
+            if (!isFileSizeValid(file)) {
+                showError(`⚠️ File "${file.name}" is too large! Maximum size is 25 MB. Your file size: ${formatFileSize(file.size)}`);
+                return;
+            }
             selectedImages.push(file);
         }
     }
@@ -172,6 +180,12 @@ function removeImage(index) {
 // HANDLE PDF
 function handlePdfFiles(file) {
     if (file && file.type === 'application/pdf') {
+        // Validate file size
+        if (!isFileSizeValid(file)) {
+            showError(`⚠️ File "${file.name}" is too large! Maximum size is 25 MB. Your file size: ${formatFileSize(file.size)}`);
+            pdfInput.value = "";
+            return;
+        }
         selectedPdfs = file;
     }
     pdfInput.value = "";
@@ -203,6 +217,12 @@ function removePdf(e) {
 
 // HANDLE LABELS PDF
 function handleLabelsPdfFile(file) {
+    // Validate file size
+    if (!isFileSizeValid(file)) {
+        showError(`⚠️ File "${file.name}" is too large! Maximum size is 25 MB. Your file size: ${formatFileSize(file.size)}`);
+        labelsPdfInput.value = "";
+        return;
+    }
     selectedLabelsPdf = file;
     updateLabelsPdfPreview();
     updateSubmitButton();
@@ -234,6 +254,15 @@ function formatFileSize(bytes) {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(1024));
     return Math.round(bytes / Math.pow(1024, i)) + ' ' + sizes[i];
+}
+
+// FILE SIZE VALIDATION
+function isFileSizeValid(file) {
+    if (file.size > MAX_FILE_SIZE) {
+        console.warn(`File "${file.name}" exceeds maximum size of 25 MB. File size: ${formatFileSize(file.size)}`);
+        return false;
+    }
+    return true;
 }
 
 function updateSubmitButton() {
