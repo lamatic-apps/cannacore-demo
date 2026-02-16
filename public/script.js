@@ -761,16 +761,33 @@ function getRefWithHyperlink(ref) {
         return "N/A";
     }
     
+    const refStr = String(ref).trim();
+    
+    // Handle split refs like "101.5/ 5K-4.034(6)(i)-1"
+    if (refStr.includes("/") && refStr.includes("101.5") && refStr.includes("5K-4.034")) {
+        const parts = refStr.split("/").map(p => p.trim());
+        if (parts.length === 2) {
+            const firstPart = parts[0];
+            const secondPart = parts[1];
+            
+            const firstUrl = "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-B/part-101/subpart-A/section-101.5";
+            const secondUrl = "https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-5K-4-034";
+            
+            return `<a href="${firstUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">${firstPart}</a> / <a href="${secondUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">${secondPart}</a>`;
+        }
+    }
+    
+    // Fallback: Map known reference patterns to URLs for single refs
     let url = null;
-    if (ref.includes("581.217")) {
+    if (refStr.includes("581.217")) {
         url = "https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0581/Sections/0581.217.html";
-    } else if (ref.includes("5K-4.034")) {
+    } else if (refStr.includes("5K-4.034")) {
         url = "https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-5K-4-034";
-    } else if (ref.includes("101.2")) {
+    } else if (refStr.includes("101.2")) {
         url = "https://www.ecfr.gov/current/title-21/part-101/section-101.2#p-101.2(c)(1)(ii)(B)(3)(iii)";
-    } else if (ref.includes("101.5")) {
+    } else if (refStr.includes("101.5")) {
         url = "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-B/part-101/subpart-A/section-101.5";
-    } else if (ref.includes("101.9")) {
+    } else if (refStr.includes("101.9")) {
         url = "https://www.ecfr.gov/current/title-21/part-101#p-101.9(j)(15)(iii)";
     }
     
