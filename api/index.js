@@ -68,6 +68,68 @@ const upload = multer({
   }
 });
 
+// Utility function to map ref to URL
+function getUrlForRef(ref) {
+  if (!ref || ref === "N/A") {
+    return null;
+  }
+
+  const refStr = String(ref);
+  
+  if (refStr.includes("581.217")) {
+    return "https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0581/Sections/0581.217.html";
+  } else if (refStr.includes("5K-4.034")) {
+    return "https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-5K-4-034";
+  } else if (refStr.includes("9 NYCRR")) {
+    return "https://www.dec.ny.gov/regulations";
+  } else if (refStr.includes("101.2")) {
+    return "https://www.ecfr.gov/current/title-21/part-101/section-101.2#p-101.2(c)(1)(ii)(B)(3)(iii)";
+  } else if (refStr.includes("101.5")) {
+    return "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-B/part-101/subpart-A/section-101.5";
+  } else if (refStr.includes("101.9")) {
+    return "https://www.ecfr.gov/current/title-21/part-101#p-101.9(j)(15)(iii)";
+  } else if (refStr.includes("101.")) {
+    return "https://www.ecfr.gov/current/title-21/part-101";
+  }
+  
+  return null;
+}
+
+// Utility function to add URL fields to compliance items
+function addUrlsToComplianceItems(result) {
+  if (!result) return result;
+
+  // Process label items
+  if (result.compliance_check && Array.isArray(result.compliance_check)) {
+    result.compliance_check.forEach(complianceItem => {
+      if (complianceItem.label && Array.isArray(complianceItem.label)) {
+        complianceItem.label.forEach(item => {
+          if (item.ref && !item.url) {
+            const url = getUrlForRef(item.ref);
+            if (url) {
+              item.url = url;
+            }
+          }
+        });
+      }
+      
+      // Process COA items
+      if (complianceItem.coa && Array.isArray(complianceItem.coa)) {
+        complianceItem.coa.forEach(item => {
+          if (item.ref && !item.url) {
+            const url = getUrlForRef(item.ref);
+            if (url) {
+              item.url = url;
+            }
+          }
+        });
+      }
+    });
+  }
+  
+  return result;
+}
+
 // API endpoint to handle file uploads and compliance check
 app.post('/api/check-compliance', apiLimiter, upload.fields([
   { name: 'images', maxCount: 10 },
@@ -355,7 +417,10 @@ app.get('/api/results/:requestId', async (req, res) => {
       // Check if this is a success response
       if (pollResult.success && pollResult.status === 'success') {
         // Extract the actual result from nested structure
-        const actualResult = pollResult.data?.output?.result || pollResult.data;
+        let actualResult = pollResult.data?.output?.result || pollResult.data;
+        
+        // Add URL fields to compliance items based on ref values
+        actualResult = addUrlsToComplianceItems(actualResult);
         
         // Trigger cleanup of uploaded files after successful completion
         setImmediate(async () => {
