@@ -327,24 +327,35 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       console.log('No COA PDF uploaded');
     }
 
-    // Upload labels PDF if provided
+    // Compress and convert labels PDF if provided
     let labelsPdfUrl = null;
+    let labelsPdfPageImages = [];
     if (labelsPdf) {
-      console.log('Uploading labels PDF to Vercel Blob...');
-      const uniqueLabelsPdfId = crypto.randomBytes(8).toString('hex');
-      const labelsPdfExtension = path.extname(labelsPdf.originalname) || '.pdf';
-      const labelsPdfFilename = `labels-pdfs/${uniqueLabelsPdfId}${labelsPdfExtension}`;
-      
+      console.log('Processing labels PDF - compressing and converting to images...');
       try {
-        const blob = await put(labelsPdfFilename, labelsPdf.buffer, {
+        // Compress the PDF
+        const compressedLabelsPdfBuffer = await compressPdf(labelsPdf.buffer);
+        
+        // Upload compressed PDF to Vercel Blob
+        const uniqueLabelsPdfId = crypto.randomBytes(8).toString('hex');
+        const labelsPdfExtension = path.extname(labelsPdf.originalname) || '.pdf';
+        const labelsPdfFilename = `labels-pdfs/${uniqueLabelsPdfId}${labelsPdfExtension}`;
+        
+        const blob = await put(labelsPdfFilename, compressedLabelsPdfBuffer, {
           access: 'public',
           contentType: labelsPdf.mimetype,
         });
         labelsPdfUrl = blob.url;
-        console.log(`Labels PDF uploaded: ${labelsPdfFilename}`);
+        console.log(`Compressed Labels PDF uploaded: ${labelsPdfFilename}`);
+        
+        // Convert PDF pages to images and upload them
+        console.log('Converting Labels PDF pages to images...');
+        labelsPdfPageImages = await convertPdfToImages(compressedLabelsPdfBuffer);
+        console.log(`Labels PDF converted to ${labelsPdfPageImages.length} images and uploaded`);
+        
       } catch (error) {
-        console.error(`Failed to upload labels PDF: ${error.message}`);
-        throw new Error(`Failed to upload labels PDF: ${error.message}`);
+        console.error(`Failed to process labels PDF: ${error.message}`);
+        throw new Error(`Failed to process labels PDF: ${error.message}`);
       }
     } else {
       console.log('No labels PDF uploaded');
@@ -354,9 +365,10 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     console.log('PDF URLs:', pdfUrls);
     console.log('Labels PDF URL:', labelsPdfUrl);
 
+    // Use converted page images instead of the raw PDF URL
     const allImageUrls = [...imageUrls];
-    if (labelsPdfUrl) {
-      allImageUrls.push(labelsPdfUrl);
+    if (labelsPdfPageImages.length > 0) {
+      allImageUrls.push(...labelsPdfPageImages);
     }
 
     console.log('=== LAMATIC API CALL ===');
