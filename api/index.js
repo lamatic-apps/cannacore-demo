@@ -9,6 +9,10 @@ const rateLimit = require('express-rate-limit');
 const { put, del } = require('@vercel/blob');
 const crypto = require('crypto');
 const { Document, Packer, Paragraph, convertInchesToTwip } = require('docx');
+const { PDFDocument } = require('pdf-lib');
+const pdfjs = require('pdfjs-dist');
+const { createCanvas } = require('canvas');
+const sharp = require('sharp');
 
 const app = express();
 
@@ -154,6 +158,84 @@ function addUrlsToComplianceItems(result) {
   return result;
 }
 
+// Utility function to compress PDF losslessly
+async function compressPdf(pdfBuffer) {
+  try {
+    console.log(`Original PDF size: ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const compressedPdf = await pdfDoc.save();
+    
+    console.log(`Compressed PDF size: ${(compressedPdf.length / 1024 / 1024).toFixed(2)} MB`);
+    
+    return Buffer.from(compressedPdf);
+  } catch (error) {
+    console.error('Error compressing PDF:', error);
+    throw new Error(`Failed to compress PDF: ${error.message}`);
+  }
+}
+
+// Utility function to convert PDF pages to images
+async function convertPdfToImages(pdfBuffer) {
+  try {
+    const imageUrls = [];
+    
+    // Set up PDF.js worker
+    pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+    
+    const pdf = await pdfjs.getDocument({ data: pdfBuffer }).promise;
+    const pageCount = pdf.numPages;
+    
+    console.log(`Converting ${pageCount} PDF pages to images...`);
+    
+    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+      try {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 2 }); // 2x scale for better quality
+        
+        // Create canvas with proper dimensions
+        const canvas = createCanvas(viewport.width, viewport.height);
+        const context = canvas.getContext('2d');
+        
+        // Render PDF page to canvas
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+        
+        // Convert canvas to buffer and compress with sharp
+        let imageBuffer = canvas.toBuffer('image/png');
+        
+        // Compress image using sharp
+        imageBuffer = await sharp(imageBuffer)
+          .png({ quality: 80, compressionLevel: 9 })
+          .toBuffer();
+        
+        // Upload to Vercel Blob
+        const uniqueImageId = crypto.randomBytes(8).toString('hex');
+        const imageFilename = `pdf-pages/${uniqueImageId}-page-${pageNum}.png`;
+        
+        const blob = await put(imageFilename, imageBuffer, {
+          access: 'public',
+          contentType: 'image/png',
+        });
+        
+        imageUrls.push(blob.url);
+        console.log(`Page ${pageNum} uploaded: ${imageFilename}`);
+      } catch (pageError) {
+        console.error(`Error converting page ${pageNum}:`, pageError);
+        throw new Error(`Failed to convert page ${pageNum}: ${pageError.message}`);
+      }
+    }
+    
+    return imageUrls;
+  } catch (error) {
+    console.error('Error converting PDF to images:', error);
+    throw new Error(`Failed to convert PDF to images: ${error.message}`);
+  }
+}
+
+
 // API endpoint to handle file uploads and compliance check
 app.post('/api/check-compliance', apiLimiter, upload.fields([
   { name: 'images', maxCount: 10 },
@@ -207,24 +289,35 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     console.log('Images uploaded successfully. Count:', imageUrls.length);
 
-    // Upload COA PDF if provided
+    // Compress and convert COA PDF if provided
     let pdfUrls = [];
     if (pdf) {
-      console.log('Uploading COA PDF to Vercel Blob...');
-      const uniquePdfId = crypto.randomBytes(8).toString('hex');
-      const pdfExtension = path.extname(pdf.originalname) || '.pdf';
-      const pdfFilename = `pdfs/${uniquePdfId}${pdfExtension}`;
-      
+      console.log('Processing COA PDF - compressing and converting to images...');
       try {
-        const blob = await put(pdfFilename, pdf.buffer, {
+        // Compress the PDF
+        const compressedPdfBuffer = await compressPdf(pdf.buffer);
+        
+        // Upload compressed PDF to Vercel Blob
+        const uniquePdfId = crypto.randomBytes(8).toString('hex');
+        const pdfExtension = path.extname(pdf.originalname) || '.pdf';
+        const pdfFilename = `pdfs/${uniquePdfId}${pdfExtension}`;
+        
+        const blob = await put(pdfFilename, compressedPdfBuffer, {
           access: 'public',
           contentType: pdf.mimetype,
         });
         pdfUrls.push(blob.url);
-        console.log(`COA PDF uploaded: ${pdfFilename}`);
+        console.log(`Compressed COA PDF uploaded: ${pdfFilename}`);
+        
+        // Convert PDF pages to images and upload them
+        console.log('Converting COA PDF pages to images...');
+        const pdfPageImages = await convertPdfToImages(compressedPdfBuffer);
+        imageUrls.push(...pdfPageImages);
+        console.log(`COA PDF converted to ${pdfPageImages.length} images and uploaded`);
+        
       } catch (error) {
-        console.error(`Failed to upload COA PDF: ${error.message}`);
-        throw new Error(`Failed to upload COA PDF: ${error.message}`);
+        console.error(`Failed to process COA PDF: ${error.message}`);
+        throw new Error(`Failed to process COA PDF: ${error.message}`);
       }
     } else {
       console.log('No COA PDF uploaded');
