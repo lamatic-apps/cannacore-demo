@@ -5,7 +5,7 @@ let selectedLabelsPdf = null;
 let selectedJurisdictions = [];
 
 // FILE SIZE VALIDATION CONSTANTS
-const MAX_FILE_SIZE = 40 * 1024 * 1024; // 40 MB
+const MAX_FILE_SIZE = 500 * 1024 * 1024; // 500 MB (for testing)
 
 // Get DOM elements
 const imageInput = document.getElementById('imageInput');
