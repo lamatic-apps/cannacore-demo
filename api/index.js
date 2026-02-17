@@ -322,7 +322,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
         imageurl: imageUrls,
         jurisdictions: jurisdictions,
         coaurl: pdfUrls.length > 0 ? pdfUrls : ["not provided"],
-        labelurl: allImageUrls.length > 0 ? allImageUrls : ["not provided"],
+        labelurl: allImageUrls.length > 0 ? allImageUrls : ["not_provided"],
         date: dateStr,
         time: timeStr,
         company_name: companyName,
@@ -669,7 +669,7 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
     }
 
     let jurisdictionsArray = Array.isArray(jurisdictions) ? jurisdictions : [jurisdictions];
-    let imageUrlArray = imageurl && imageurl.length > 0 ? (Array.isArray(imageurl) ? imageurl : [imageurl]) : ["not provided"];
+    let imageUrlArray = imageurl && imageurl.length > 0 ? (Array.isArray(imageurl) ? imageurl : [imageurl]) : ["not_provided"];
     let coaUrlArray = coaurl ? (Array.isArray(coaurl) ? coaurl : [coaurl]) : ["not provided"];
 
     console.log('=== LAMATIC API CALL ===');
