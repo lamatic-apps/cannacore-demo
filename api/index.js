@@ -9,8 +9,6 @@ const rateLimit = require('express-rate-limit');
 const { put, del } = require('@vercel/blob');
 const crypto = require('crypto');
 const { Document, Packer, Paragraph, convertInchesToTwip } = require('docx');
-const { PDFDocument } = require('pdf-lib');
-const sharp = require('sharp');
 const mupdf = require('mupdf');
 
 const app = express();
@@ -159,33 +157,18 @@ function addUrlsToComplianceItems(result) {
   return result;
 }
 
-// Utility function to compress PDF losslessly
-async function compressPdf(pdfBuffer) {
-  try {
-    console.log(`Original PDF size: ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`);
-    
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
-    const compressedPdf = await pdfDoc.save();
-    
-    console.log(`Compressed PDF size: ${(compressedPdf.length / 1024 / 1024).toFixed(2)} MB`);
-    
-    return Buffer.from(compressedPdf);
-  } catch (error) {
-    console.error('Error compressing PDF:', error);
-    throw new Error(`Failed to compress PDF: ${error.message}`);
-  }
-}
-
-// Utility function to convert PDF pages to images using mupdf (WASM-based)
+// Utility function to convert PDF pages to JPG images using mupdf (WASM-based)
 async function convertPdfToImages(pdfBuffer) {
   try {
     const imageUrls = [];
+    
+    console.log(`PDF size: ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`);
     
     // Open PDF document with mupdf
     const doc = mupdf.Document.openDocument(pdfBuffer, 'application/pdf');
     const pageCount = doc.countPages();
     
-    console.log(`Converting ${pageCount} PDF pages to images...`);
+    console.log(`Converting ${pageCount} PDF pages to JPG images...`);
     
     for (let pageNum = 0; pageNum < pageCount; pageNum++) {
       try {
@@ -196,21 +179,16 @@ async function convertPdfToImages(pdfBuffer) {
         const matrix = mupdf.Matrix.scale(scaleFactor, scaleFactor);
         const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true);
         
-        // Convert pixmap to PNG buffer
-        let imageBuffer = pixmap.asPNG();
-        
-        // Compress image using sharp
-        imageBuffer = await sharp(Buffer.from(imageBuffer))
-          .png({ compressionLevel: 9 })
-          .toBuffer();
+        // Convert pixmap to JPEG buffer (quality 90)
+        const imageBuffer = Buffer.from(pixmap.asJPEG(90));
         
         // Upload to Vercel Blob
         const uniqueImageId = crypto.randomBytes(8).toString('hex');
-        const imageFilename = `pdf-pages/${uniqueImageId}-page-${pageNum + 1}.png`;
+        const imageFilename = `pdf-pages/${uniqueImageId}-page-${pageNum + 1}.jpg`;
         
         const blob = await put(imageFilename, imageBuffer, {
           access: 'public',
-          contentType: 'image/png',
+          contentType: 'image/jpeg',
         });
         
         imageUrls.push(blob.url);
@@ -282,32 +260,14 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
 
     console.log('Images uploaded successfully. Count:', imageUrls.length);
 
-    // Compress and convert COA PDF if provided
+    // Convert COA PDF pages to JPG if provided
     let pdfUrls = [];
     if (pdf) {
-      console.log('Processing COA PDF - compressing and converting to images...');
+      console.log('Processing COA PDF - converting pages to JPG...');
       try {
-        // Compress the PDF
-        const compressedPdfBuffer = await compressPdf(pdf.buffer);
-        
-        // Upload compressed PDF to Vercel Blob
-        const uniquePdfId = crypto.randomBytes(8).toString('hex');
-        const pdfExtension = path.extname(pdf.originalname) || '.pdf';
-        const pdfFilename = `pdfs/${uniquePdfId}${pdfExtension}`;
-        
-        const blob = await put(pdfFilename, compressedPdfBuffer, {
-          access: 'public',
-          contentType: pdf.mimetype,
-        });
-        pdfUrls.push(blob.url);
-        console.log(`Compressed COA PDF uploaded: ${pdfFilename}`);
-        
-        // Convert PDF pages to images and upload them
-        console.log('Converting COA PDF pages to images...');
-        const pdfPageImages = await convertPdfToImages(compressedPdfBuffer);
-        imageUrls.push(...pdfPageImages);
-        console.log(`COA PDF converted to ${pdfPageImages.length} images and uploaded`);
-        
+        const pdfPageImages = await convertPdfToImages(pdf.buffer);
+        pdfUrls.push(...pdfPageImages);
+        console.log(`COA PDF converted to ${pdfPageImages.length} JPG images`);
       } catch (error) {
         console.error(`Failed to process COA PDF: ${error.message}`);
         throw new Error(`Failed to process COA PDF: ${error.message}`);
@@ -316,32 +276,13 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
       console.log('No COA PDF uploaded');
     }
 
-    // Compress and convert labels PDF if provided
-    let labelsPdfUrl = null;
+    // Convert labels PDF pages to JPG if provided
     let labelsPdfPageImages = [];
     if (labelsPdf) {
-      console.log('Processing labels PDF - compressing and converting to images...');
+      console.log('Processing labels PDF - converting pages to JPG...');
       try {
-        // Compress the PDF
-        const compressedLabelsPdfBuffer = await compressPdf(labelsPdf.buffer);
-        
-        // Upload compressed PDF to Vercel Blob
-        const uniqueLabelsPdfId = crypto.randomBytes(8).toString('hex');
-        const labelsPdfExtension = path.extname(labelsPdf.originalname) || '.pdf';
-        const labelsPdfFilename = `labels-pdfs/${uniqueLabelsPdfId}${labelsPdfExtension}`;
-        
-        const blob = await put(labelsPdfFilename, compressedLabelsPdfBuffer, {
-          access: 'public',
-          contentType: labelsPdf.mimetype,
-        });
-        labelsPdfUrl = blob.url;
-        console.log(`Compressed Labels PDF uploaded: ${labelsPdfFilename}`);
-        
-        // Convert PDF pages to images and upload them
-        console.log('Converting Labels PDF pages to images...');
-        labelsPdfPageImages = await convertPdfToImages(compressedLabelsPdfBuffer);
-        console.log(`Labels PDF converted to ${labelsPdfPageImages.length} images and uploaded`);
-        
+        labelsPdfPageImages = await convertPdfToImages(labelsPdf.buffer);
+        console.log(`Labels PDF converted to ${labelsPdfPageImages.length} JPG images`);
       } catch (error) {
         console.error(`Failed to process labels PDF: ${error.message}`);
         throw new Error(`Failed to process labels PDF: ${error.message}`);
@@ -714,23 +655,11 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
     const isPdf = fileName.toLowerCase().endsWith('.pdf');
     
     if (isPdf) {
-      // Compress PDF and convert pages to images
-      console.log('PDF detected - compressing and converting to page images...');
+      // Convert PDF pages directly to JPG images
+      console.log('PDF detected - converting pages to JPG images...');
       
-      // Step 1: Compress PDF
-      const compressedBuffer = await compressPdf(assembledBuffer);
-      
-      // Step 2: Convert each page to an image and upload
-      const pageImageUrls = await convertPdfToImages(compressedBuffer);
-      console.log(`PDF converted to ${pageImageUrls.length} page images`);
-      
-      // Also upload the compressed PDF for reference
-      const blobFileName = `${fileType}/${Date.now()}-${crypto.randomBytes(8).toString('hex')}-${fileName}`;
-      const pdfBlob = await put(blobFileName, compressedBuffer, {
-        access: 'public',
-        contentType: 'application/pdf'
-      });
-      console.log(`Compressed PDF also uploaded: ${pdfBlob.url}`);
+      const pageImageUrls = await convertPdfToImages(assembledBuffer);
+      console.log(`PDF converted to ${pageImageUrls.length} JPG images`);
       
       // Clean up chunks from memory
       chunkStorage.delete(uploadId);
@@ -739,10 +668,6 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
         success: true,
         uploadId,
         urls: pageImageUrls,
-        pdfUrl: pdfBlob.url,
-        fileName: blobFileName,
-        size: compressedBuffer.length,
-        originalSize: assembledBuffer.length,
         pageCount: pageImageUrls.length
       });
     } else {
