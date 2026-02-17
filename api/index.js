@@ -9,7 +9,6 @@ const rateLimit = require('express-rate-limit');
 const { put, del } = require('@vercel/blob');
 const crypto = require('crypto');
 const { Document, Packer, Paragraph, convertInchesToTwip } = require('docx');
-const mupdf = require('mupdf');
 
 const app = express();
 
@@ -163,6 +162,9 @@ async function convertPdfToImages(pdfBuffer) {
     const imageUrls = [];
     
     console.log(`PDF size: ${(pdfBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+    
+    // Dynamic import for ESM compatibility
+    const mupdf = await import('mupdf');
     
     // Open PDF document with mupdf
     const doc = mupdf.Document.openDocument(pdfBuffer, 'application/pdf');
