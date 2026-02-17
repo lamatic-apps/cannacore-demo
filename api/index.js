@@ -10,7 +10,6 @@ const { put, del } = require('@vercel/blob');
 const crypto = require('crypto');
 const { Document, Packer, Paragraph, convertInchesToTwip } = require('docx');
 const { PDFDocument } = require('pdf-lib');
-const pdfjs = require('pdfjs-dist');
 const { createCanvas } = require('canvas');
 const sharp = require('sharp');
 
@@ -181,6 +180,9 @@ async function compressPdf(pdfBuffer) {
 async function convertPdfToImages(pdfBuffer) {
   try {
     const imageUrls = [];
+    
+    // Dynamically import pdfjs to avoid ESM/CommonJS issues
+    const pdfjs = await import('pdfjs-dist');
     
     // Set up PDF.js worker
     pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
