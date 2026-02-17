@@ -161,9 +161,9 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
   { name: 'labelsPdf', maxCount: 1 }
 ]), async (req, res) => {
   try {
-    if (!req.files || (!req.files.images && !req.files.labelsPdf)) {
+    if (!req.files || (!req.files.images && !req.files.labelsPdf && !req.files.pdf)) {
       return res.status(400).json({
-        error: 'Please upload either product images or labels PDF'
+        error: 'Please upload product images, labels PDF, or COA PDF'
       });
     }
 
@@ -322,7 +322,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
         imageurl: imageUrls,
         jurisdictions: jurisdictions,
         coaurl: pdfUrls.length > 0 ? pdfUrls : ["not provided"],
-        labelurl: allImageUrls,
+        labelurl: allImageUrls.length > 0 ? allImageUrls : ["not provided"],
         date: dateStr,
         time: timeStr,
         company_name: companyName,
