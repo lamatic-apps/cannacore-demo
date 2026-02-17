@@ -10,8 +10,8 @@ const { put, del } = require('@vercel/blob');
 const crypto = require('crypto');
 const { Document, Packer, Paragraph, convertInchesToTwip } = require('docx');
 const { PDFDocument } = require('pdf-lib');
-const { createCanvas } = require('canvas');
 const sharp = require('sharp');
+const mupdf = require('mupdf');
 
 const app = express();
 
@@ -176,57 +176,37 @@ async function compressPdf(pdfBuffer) {
   }
 }
 
-// Utility function to convert PDF pages to images
+// Utility function to convert PDF pages to images using mupdf (WASM-based)
 async function convertPdfToImages(pdfBuffer) {
   try {
     const imageUrls = [];
     
-    // Polyfill DOMMatrix for Node.js (required by pdfjs-dist)
-    if (typeof globalThis.DOMMatrix === 'undefined') {
-      const { DOMMatrix } = require('canvas');
-      globalThis.DOMMatrix = DOMMatrix;
-    }
-    
-    // Use legacy build for Node.js environments
-    const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-    
-    // Disable worker for Node.js
-    pdfjs.GlobalWorkerOptions.workerSrc = '';
-    
-    // Convert Buffer to Uint8Array as required by pdfjs-dist
-    const pdfData = new Uint8Array(pdfBuffer);
-    
-    const pdf = await pdfjs.getDocument({ data: pdfData, useSystemFonts: true }).promise;
-    const pageCount = pdf.numPages;
+    // Open PDF document with mupdf
+    const doc = mupdf.Document.openDocument(pdfBuffer, 'application/pdf');
+    const pageCount = doc.countPages();
     
     console.log(`Converting ${pageCount} PDF pages to images...`);
     
-    for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+    for (let pageNum = 0; pageNum < pageCount; pageNum++) {
       try {
-        const page = await pdf.getPage(pageNum);
-        const viewport = page.getViewport({ scale: 2 }); // 2x scale for better quality
+        const page = doc.loadPage(pageNum);
         
-        // Create canvas with proper dimensions
-        const canvas = createCanvas(viewport.width, viewport.height);
-        const context = canvas.getContext('2d');
+        // Render page to pixmap at 2x scale (144 DPI)
+        const scaleFactor = 2;
+        const matrix = mupdf.Matrix.scale(scaleFactor, scaleFactor);
+        const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, false, true);
         
-        // Render PDF page to canvas
-        await page.render({
-          canvasContext: context,
-          viewport: viewport
-        }).promise;
-        
-        // Convert canvas to buffer and compress with sharp
-        let imageBuffer = canvas.toBuffer('image/png');
+        // Convert pixmap to PNG buffer
+        let imageBuffer = pixmap.asPNG();
         
         // Compress image using sharp
-        imageBuffer = await sharp(imageBuffer)
-          .png({ quality: 80, compressionLevel: 9 })
+        imageBuffer = await sharp(Buffer.from(imageBuffer))
+          .png({ compressionLevel: 9 })
           .toBuffer();
         
         // Upload to Vercel Blob
         const uniqueImageId = crypto.randomBytes(8).toString('hex');
-        const imageFilename = `pdf-pages/${uniqueImageId}-page-${pageNum}.png`;
+        const imageFilename = `pdf-pages/${uniqueImageId}-page-${pageNum + 1}.png`;
         
         const blob = await put(imageFilename, imageBuffer, {
           access: 'public',
@@ -234,10 +214,10 @@ async function convertPdfToImages(pdfBuffer) {
         });
         
         imageUrls.push(blob.url);
-        console.log(`Page ${pageNum}/${pageCount} uploaded: ${imageFilename} (${(imageBuffer.length / 1024).toFixed(0)} KB)`);
+        console.log(`Page ${pageNum + 1}/${pageCount} uploaded: ${imageFilename} (${(imageBuffer.length / 1024).toFixed(0)} KB)`);
       } catch (pageError) {
-        console.error(`Error converting page ${pageNum}:`, pageError);
-        throw new Error(`Failed to convert page ${pageNum}: ${pageError.message}`);
+        console.error(`Error converting page ${pageNum + 1}:`, pageError);
+        throw new Error(`Failed to convert page ${pageNum + 1}: ${pageError.message}`);
       }
     }
     
