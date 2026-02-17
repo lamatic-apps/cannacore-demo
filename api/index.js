@@ -39,14 +39,16 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
 
-// Rate limiting configuration
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
+// Rate limiting configuration - DISABLED FOR TESTING
+// const apiLimiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 10,
+//   message: 'Too many requests from this IP, please try again later.',
+//   standardHeaders: true,
+//   legacyHeaders: false,
+// });
+// Dummy middleware that doesn't limit for testing
+const apiLimiter = (req, res, next) => next();
 
 // Middleware
 const corsOptions = {
@@ -73,9 +75,9 @@ app.options('/api/upload-chunk', (req, res) => {
   res.status(200).send('OK');
 });
 
-// Parse JSON for other routes
-app.use(express.json());
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+// Parse JSON for other routes - INCREASED LIMITS FOR TESTING
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 
 // Configure multer for file uploads
 const storage = multer.memoryStorage();
@@ -238,9 +240,9 @@ async function convertPdfToImages(pdfBuffer) {
 
 // API endpoint to handle file uploads and compliance check
 app.post('/api/check-compliance', apiLimiter, upload.fields([
-  { name: 'images', maxCount: 10 },
-  { name: 'pdf', maxCount: 10 },
-  { name: 'labelsPdf', maxCount: 1 }
+  { name: 'images', maxCount: 100 },
+  { name: 'pdf', maxCount: 100 },
+  { name: 'labelsPdf', maxCount: 100 }
 ]), async (req, res) => {
   try {
     if (!req.files || (!req.files.images && !req.files.labelsPdf && !req.files.pdf)) {
@@ -600,7 +602,7 @@ app.get('/api/results/:requestId', async (req, res) => {
 // **CHUNKED FILE UPLOAD ENDPOINTS**
 
 // Upload a single file chunk - raw binary data with explicit middleware
-app.post('/api/upload-chunk', express.raw({ type: '*/*', limit: '10mb' }), (req, res) => {
+app.post('/api/upload-chunk', express.raw({ type: '*/*', limit: '500mb' }), (req, res) => {
   try {
     const uploadId = req.headers['x-upload-id'];
     const chunkIndex = parseInt(req.headers['x-chunk-index']);
@@ -740,7 +742,7 @@ app.post('/api/finalize-chunks', express.json(), async (req, res) => {
 
 
 // API endpoint for compliance check with pre-uploaded URLs
-app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, res) => {
+app.post('/api/check-compliance-urls', apiLimiter, express.json({ limit: '500mb' }), async (req, res) => {
   try {
     const { imageurl, coaurl, jurisdictions, date, time, company_name, product_type } = req.body;
 
