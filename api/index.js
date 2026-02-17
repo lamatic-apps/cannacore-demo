@@ -651,8 +651,8 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
   try {
     const { imageurl, coaurl, jurisdictions, date, time, company_name, product_type } = req.body;
 
-    if (!imageurl || imageurl.length === 0) {
-      return res.status(400).json({ error: 'At least one file (image or PDF) is required' });
+    if ((!imageurl || imageurl.length === 0) && (!coaurl || coaurl.length === 0 || (coaurl.length === 1 && coaurl[0] === 'not provided'))) {
+      return res.status(400).json({ error: 'At least one file (image, label PDF, or COA) is required' });
     }
 
     if (!jurisdictions || jurisdictions.length === 0) {
@@ -669,7 +669,7 @@ app.post('/api/check-compliance-urls', apiLimiter, express.json(), async (req, r
     }
 
     let jurisdictionsArray = Array.isArray(jurisdictions) ? jurisdictions : [jurisdictions];
-    let imageUrlArray = Array.isArray(imageurl) ? imageurl : [imageurl];
+    let imageUrlArray = imageurl && imageurl.length > 0 ? (Array.isArray(imageurl) ? imageurl : [imageurl]) : ["not provided"];
     let coaUrlArray = coaurl ? (Array.isArray(coaurl) ? coaurl : [coaurl]) : ["not provided"];
 
     console.log('=== LAMATIC API CALL ===');
