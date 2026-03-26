@@ -613,8 +613,8 @@ function escapeHtml(text) {
 }
 
 // DISPLAY HEADER
-function displayHeader(companyName, productType, date, time, output, overallStatus, allProductNames, totalConcerns) {
-    console.log('In displayHeader');
+function displayHeader(companyName, productType, date, time, output, overallStatus, allProductNames, totalConcerns, targetEl) {
+    const target = targetEl || resultsSection;
     const headerDiv = document.createElement("div");
     headerDiv.className = "results-category header-section";
     headerDiv.style.borderBottom = "1px solid #ddd";
@@ -649,21 +649,19 @@ function displayHeader(companyName, productType, date, time, output, overallStat
         </div>
     `;
     
-    resultsSection.appendChild(headerDiv);
-    console.log('Header section appended');
+    target.appendChild(headerDiv);
 }
 
 // DISPLAY COA RESULTS
-function displayCOA(coaData) {
-    console.log('In displayCOA, coaData:', coaData);
+function displayCOA(coaData, targetEl) {
+    const target = targetEl || resultsSection;
     const coaDiv = document.createElement("div");
     coaDiv.className = "results-category";
     coaDiv.innerHTML = `<h2>CERTIFICATE OF ANALYSIS (COA) COMPLIANCE</h2>`;
 
     if (!coaData || coaData.length === 0) {
         coaDiv.innerHTML += "<p>No COA data available</p>";
-        resultsSection.appendChild(coaDiv);
-        console.log('No COA data to display');
+        target.appendChild(coaDiv);
         return;
     }
 
@@ -684,14 +682,15 @@ function displayCOA(coaData) {
         // Determine compliance status
         let complianceStatus = "Unknown";
         let statusColor = "gray";
-        
-        if (item.compliant === true) {
+        const coaCompliant = String(item.compliant).toLowerCase().trim();
+
+        if (coaCompliant === "true") {
             complianceStatus = "✓ COMPLIANT";
             statusColor = "green";
-        } else if (item.compliant === false) {
+        } else if (coaCompliant === "false") {
             complianceStatus = "✗ NON-COMPLIANT";
             statusColor = "red";
-        } else if (item.compliant === "human review" || item.compliant === "human_review") {
+        } else if (coaCompliant === "human_review" || coaCompliant === "human review") {
             complianceStatus = "⚠ HUMAN REVIEW";
             statusColor = "orange";
         }
@@ -706,20 +705,19 @@ function displayCOA(coaData) {
         coaDiv.appendChild(card);
     });
     
-    resultsSection.appendChild(coaDiv);
-    console.log('COA section appended with', validItemCount, 'valid items');
+    target.appendChild(coaDiv);
 }
 
 // DISPLAY LABELS RESULTS
-function displayLabels(labelsData) {
-    console.log('In displayLabels, labelsData:', labelsData);
+function displayLabels(labelsData, targetEl) {
+    const target = targetEl || resultsSection;
     const labelsDiv = document.createElement("div");
     labelsDiv.className = "results-category";
     labelsDiv.innerHTML = `<h2>PACKAGING & LABELS COMPLIANCE</h2>`;
 
     if (!labelsData || labelsData.length === 0) {
         labelsDiv.innerHTML += "<p>No labels data available</p>";
-        resultsSection.appendChild(labelsDiv);
+        target.appendChild(labelsDiv);
         console.log('No labels data to display');
         return;
     }
@@ -742,11 +740,11 @@ function displayLabels(labelsData) {
         let complianceStatus = "Unknown";
         let statusColor = "gray";
         
-        const compliantValue = item.compliant;
-        if (compliantValue === true || compliantValue === "true") {
+        const compliantValue = String(item.compliant).toLowerCase().trim();
+        if (compliantValue === "true") {
             complianceStatus = "✓ COMPLIANT";
             statusColor = "green";
-        } else if (compliantValue === false || compliantValue === "false") {
+        } else if (compliantValue === "false") {
             complianceStatus = "✗ NON-COMPLIANT";
             statusColor = "red";
         } else if (compliantValue === "human_review" || compliantValue === "human review") {
@@ -768,7 +766,7 @@ function displayLabels(labelsData) {
         labelsDiv.appendChild(card);
     });
     
-    resultsSection.appendChild(labelsDiv);
+    target.appendChild(labelsDiv);
     console.log('Labels section appended with', validItemCount, 'valid items');
 }
 
@@ -819,51 +817,137 @@ function showError(msg) {
     errorSection.innerHTML = `<p>${msg}</p>`;
 }
 
-function renderResults(result) {
-    console.log('renderResults() called with:', result);
+let allComplianceResults = null;
 
-    if (!result) { console.error('renderResults: result is null/undefined'); return; }
+function renderResults(result) {
+    if (!result) return;
+
+    allComplianceResults = result;
 
     const rSection = document.getElementById('resultsSection');
     const uForm = document.getElementById('uploadForm');
-    console.log('resultsSection el:', rSection);
-    console.log('uploadForm el:', uForm);
-
-    if (!rSection) { console.error('renderResults: #resultsSection not found in DOM'); return; }
+    if (!rSection) return;
 
     rSection.innerHTML = "";
     rSection.style.display = "block";
     if (uForm) uForm.style.display = "none";
 
+    // Build jurisdiction dropdown + download button wrapper
+    const wrapper = document.createElement('div');
+    wrapper.className = 'results-page';
+
+    // Title
+    const title = document.createElement('h1');
+    title.className = 'results-title';
+    title.textContent = 'COMPLIANCE RESULTS';
+    wrapper.appendChild(title);
+
+    const divider = document.createElement('div');
+    divider.className = 'results-divider';
+    wrapper.appendChild(divider);
+
+    // Jurisdiction dropdown
     const complianceItems = result.compliance_check || [];
-    console.log('complianceItems:', complianceItems.length);
+    const jurisdictions = [...new Set(complianceItems.map(i => i.jurisdiction).filter(Boolean))];
 
-    let hasNonCompliant = false;
-    let hasHumanReview = false;
-    let totalConcerns = 0;
-    const productNames = new Set();
+    if (jurisdictions.length > 1) {
+        const selectorContainer = document.createElement('div');
+        selectorContainer.style.cssText = 'margin-bottom: 30px;';
+        const label = document.createElement('label');
+        label.htmlFor = 'inlineJurisdictionSelect';
+        label.style.cssText = 'font-weight: 600; margin-right: 10px;';
+        label.textContent = 'Select Jurisdiction:';
+        const select = document.createElement('select');
+        select.id = 'inlineJurisdictionSelect';
+        select.style.cssText = 'padding: 8px 12px; border-radius: 5px; border: 1px solid #ddd; font-size: 1rem; cursor: pointer;';
 
-    complianceItems.forEach(item => {
-        if (item.merged_product_key) productNames.add(item.merged_product_key.toUpperCase());
+        const allOpt = document.createElement('option');
+        allOpt.value = 'ALL';
+        allOpt.textContent = 'ALL JURISDICTIONS';
+        select.appendChild(allOpt);
+        jurisdictions.forEach(j => {
+            const opt = document.createElement('option');
+            opt.value = j;
+            opt.textContent = j;
+            select.appendChild(opt);
+        });
+
+        select.addEventListener('change', e => renderComplianceItems(innerSection, result, e.target.value));
+        selectorContainer.appendChild(label);
+        selectorContainer.appendChild(select);
+        wrapper.appendChild(selectorContainer);
+    }
+
+    // Inner section for compliance content
+    const innerSection = document.createElement('div');
+    wrapper.appendChild(innerSection);
+
+    // Download button
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'results-download-button';
+    downloadBtn.textContent = 'DOWNLOAD';
+    downloadBtn.addEventListener('click', () => handleDownload(innerSection, downloadBtn));
+    wrapper.appendChild(downloadBtn);
+
+    rSection.appendChild(wrapper);
+
+    // Render all jurisdictions by default
+    renderComplianceItems(innerSection, result, 'ALL');
+    rSection.scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderComplianceItems(container, result, selectedJurisdiction) {
+    container.innerHTML = '';
+    const complianceItems = result.compliance_check || [];
+
+    const filtered = selectedJurisdiction === 'ALL'
+        ? complianceItems
+        : complianceItems.filter(i => i.jurisdiction === selectedJurisdiction);
+
+    filtered.forEach((item, index) => {
+        // Calculate overall status for this item
+        let hasNonCompliant = false, hasHumanReview = false, totalConcerns = 0;
         (item.label || []).concat(item.coa || []).forEach(r => {
             const v = String(r.compliant).toLowerCase().trim();
             if (v === "false") { hasNonCompliant = true; totalConcerns++; }
             else if (v === "human_review" || v === "human review") { hasHumanReview = true; totalConcerns++; }
         });
+        const overallStatus = hasNonCompliant ? "NON-COMPLIANT" : hasHumanReview ? "HUMAN REVIEW" : "COMPLIANT";
+        const productName = item.merged_product_key ? item.merged_product_key.toUpperCase() : '';
+
+        if (index === 0) {
+            displayHeader(result.company_name, result.product_type, result.date, result.time, result.output, overallStatus, productName, totalConcerns, container);
+        }
+
+        if (item.label && item.label.length > 0) displayLabels(item.label, container);
+        if (item.coa && item.coa.length > 0) displayCOA(item.coa, container);
     });
+}
 
-    const overallStatus = hasNonCompliant ? "NON-COMPLIANT" : hasHumanReview ? "HUMAN REVIEW" : "COMPLIANT";
-    const allProductNames = [...productNames].join(", ");
-    console.log('overallStatus:', overallStatus, 'totalConcerns:', totalConcerns);
-
-    displayHeader(result.company_name, result.product_type, result.date, result.time, result.output, overallStatus, allProductNames, totalConcerns);
-
-    complianceItems.forEach((item, i) => {
-        console.log(`Rendering complianceItem[${i}]: label=${item.label?.length}, coa=${item.coa?.length}`);
-        if (item.label && item.label.length > 0) displayLabels(item.label);
-        if (item.coa && item.coa.length > 0) displayCOA(item.coa);
-    });
-
-    console.log('renderResults() done. resultsSection children:', rSection.children.length);
-    rSection.scrollIntoView({ behavior: 'smooth' });
+async function handleDownload(innerSection, btn) {
+    btn.disabled = true;
+    btn.textContent = 'GENERATING WORD DOC...';
+    try {
+        const content = innerSection.innerText || innerSection.textContent;
+        const response = await fetch('/api/download-report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+        if (!response.ok) throw new Error('Failed to generate document');
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `compliance-report-${new Date().toISOString().split('T')[0]}.docx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    } catch (err) {
+        alert('Error generating Word document. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'DOWNLOAD';
+    }
 }
