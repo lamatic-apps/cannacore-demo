@@ -39,22 +39,44 @@
         let allCompliances = null;
         let selectedJurisdiction = null;
 
-        window.addEventListener("DOMContentLoaded", () => {
-            const stored = sessionStorage.getItem("complianceResults");
-
-            if (!stored) {
-                console.log("No session data found. Redirecting.");
-                window.location.href = "/";
-                return;
-            }
+        window.addEventListener("DOMContentLoaded", async () => {
+            const params = new URLSearchParams(window.location.search);
+            const requestId = params.get("requestId");
 
             let parsed;
-            try {
-                parsed = JSON.parse(stored);
-            } catch (e) {
-                console.error("Corrupt session data. Redirecting.");
-                window.location.href = "/";
-                return;
+
+            if (requestId) {
+                // Fetch results from API using requestId
+                try {
+                    const response = await fetch(`/api/results/${requestId}`);
+                    const resultData = await response.json();
+                    if (response.ok && resultData.success && resultData.status === 'success') {
+                        parsed = resultData.data.output?.result || resultData.data;
+                    } else {
+                        console.error("Failed to fetch results:", resultData);
+                        window.location.href = "/";
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Error fetching results:", e);
+                    window.location.href = "/";
+                    return;
+                }
+            } else {
+                // Fallback to sessionStorage
+                const stored = sessionStorage.getItem("complianceResults");
+                if (!stored) {
+                    console.log("No session data found. Redirecting.");
+                    window.location.href = "/";
+                    return;
+                }
+                try {
+                    parsed = JSON.parse(stored);
+                } catch (e) {
+                    console.error("Corrupt session data. Redirecting.");
+                    window.location.href = "/";
+                    return;
+                }
             }
 
             console.log("Loaded results:", parsed);

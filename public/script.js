@@ -566,11 +566,9 @@ async function pollForResults(requestId) {
             if (response.ok && resultData.success && resultData.status === 'success') {
                 // Results ready! Extract the actual result object with compliance_check
                 console.log('Results received!');
-                const actualResult = resultData.data.output?.result || resultData.data;
-                console.log('Storing result:', actualResult);
-                sessionStorage.setItem("complianceResults", JSON.stringify(actualResult));
+                console.log('Results received, redirecting with requestId:', requestId);
                 loadingState.style.display = "none";
-                window.location.href = "/results.html";
+                window.location.href = `/results.html?requestId=${requestId}`;
                 return;
             } else if (resultData.status === 'failed') {
                 // Workflow failed - display error to user
