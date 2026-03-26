@@ -535,8 +535,8 @@ uploadForm.addEventListener('submit', async e => {
         } else {
             // Synchronous response with results
             const result = json?.result || json;
-            sessionStorage.setItem("complianceResults", JSON.stringify(result));
-            window.location.href = "/results.html";
+            loadingState.style.display = "none";
+            renderResults(result);
         }
     } catch (err) {
         loadingState.style.display = "none";
@@ -567,11 +567,9 @@ async function pollForResults(requestId) {
                 // Results ready! Extract the actual result object with compliance_check
                 console.log('Results received!');
                 const actualResult = resultData.data.output?.result || resultData.data;
-                console.log('Storing result and redirecting:', requestId);
-                sessionStorage.setItem("complianceResults", JSON.stringify(actualResult));
-                localStorage.setItem("complianceResults", JSON.stringify(actualResult));
+                console.log('Results received, rendering inline');
                 loadingState.style.display = "none";
-                window.location.href = `/results.html#requestId=${requestId}`;
+                renderResults(actualResult);
                 return;
             } else if (resultData.status === 'failed') {
                 // Workflow failed - display error to user
@@ -813,4 +811,40 @@ function getRefWithHyperlink(ref) {
 function showError(msg) {
     errorSection.style.display = "block";
     errorSection.innerHTML = `<p>${msg}</p>`;
+}
+
+function renderResults(result) {
+    resultsSection.innerHTML = "";
+    resultsSection.style.display = "block";
+    uploadForm.style.display = "none";
+
+    const complianceItems = result.compliance_check || [];
+
+    // Calculate overall status
+    let hasNonCompliant = false;
+    let hasHumanReview = false;
+    let totalConcerns = 0;
+    const productNames = new Set();
+
+    complianceItems.forEach(item => {
+        if (item.merged_product_key) productNames.add(item.merged_product_key.toUpperCase());
+        (item.label || []).concat(item.coa || []).forEach(r => {
+            const v = String(r.compliant).toLowerCase().trim();
+            if (v === "false") { hasNonCompliant = true; totalConcerns++; }
+            else if (v === "human_review" || v === "human review") { hasHumanReview = true; totalConcerns++; }
+        });
+    });
+
+    const overallStatus = hasNonCompliant ? "NON-COMPLIANT" : hasHumanReview ? "HUMAN REVIEW" : "COMPLIANT";
+    const allProductNames = [...productNames].join(", ");
+
+    displayHeader(result.company_name, result.product_type, result.date, result.time, result.output, overallStatus, allProductNames, totalConcerns);
+
+    complianceItems.forEach(item => {
+        if (item.label && item.label.length > 0) displayLabels(item.label);
+        if (item.coa && item.coa.length > 0) displayCOA(item.coa);
+    });
+
+    // Scroll to results
+    resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
