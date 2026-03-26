@@ -564,12 +564,18 @@ async function pollForResults(requestId) {
             console.log(`Poll ${pollCount}:`, resultData);
 
             if (response.ok && resultData.success && resultData.status === 'success') {
-                // Results ready! Extract the actual result object with compliance_check
-                console.log('Results received!');
+                console.log('Results received! Attempting to render...');
                 const actualResult = resultData.data.output?.result || resultData.data;
-                console.log('Results received, rendering inline');
+                console.log('actualResult keys:', Object.keys(actualResult || {}));
+                console.log('compliance_check length:', actualResult?.compliance_check?.length);
                 loadingState.style.display = "none";
-                renderResults(actualResult);
+                try {
+                    renderResults(actualResult);
+                    console.log('renderResults() completed successfully');
+                } catch (renderErr) {
+                    console.error('ERROR in renderResults():', renderErr);
+                    showError('Failed to render results: ' + renderErr.message);
+                }
                 return;
             } else if (resultData.status === 'failed') {
                 // Workflow failed - display error to user
@@ -814,13 +820,24 @@ function showError(msg) {
 }
 
 function renderResults(result) {
-    resultsSection.innerHTML = "";
-    resultsSection.style.display = "block";
-    uploadForm.style.display = "none";
+    console.log('renderResults() called with:', result);
+
+    if (!result) { console.error('renderResults: result is null/undefined'); return; }
+
+    const rSection = document.getElementById('resultsSection');
+    const uForm = document.getElementById('uploadForm');
+    console.log('resultsSection el:', rSection);
+    console.log('uploadForm el:', uForm);
+
+    if (!rSection) { console.error('renderResults: #resultsSection not found in DOM'); return; }
+
+    rSection.innerHTML = "";
+    rSection.style.display = "block";
+    if (uForm) uForm.style.display = "none";
 
     const complianceItems = result.compliance_check || [];
+    console.log('complianceItems:', complianceItems.length);
 
-    // Calculate overall status
     let hasNonCompliant = false;
     let hasHumanReview = false;
     let totalConcerns = 0;
@@ -837,14 +854,16 @@ function renderResults(result) {
 
     const overallStatus = hasNonCompliant ? "NON-COMPLIANT" : hasHumanReview ? "HUMAN REVIEW" : "COMPLIANT";
     const allProductNames = [...productNames].join(", ");
+    console.log('overallStatus:', overallStatus, 'totalConcerns:', totalConcerns);
 
     displayHeader(result.company_name, result.product_type, result.date, result.time, result.output, overallStatus, allProductNames, totalConcerns);
 
-    complianceItems.forEach(item => {
+    complianceItems.forEach((item, i) => {
+        console.log(`Rendering complianceItem[${i}]: label=${item.label?.length}, coa=${item.coa?.length}`);
         if (item.label && item.label.length > 0) displayLabels(item.label);
         if (item.coa && item.coa.length > 0) displayCOA(item.coa);
     });
 
-    // Scroll to results
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
+    console.log('renderResults() done. resultsSection children:', rSection.children.length);
+    rSection.scrollIntoView({ behavior: 'smooth' });
 }
