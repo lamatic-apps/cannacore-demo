@@ -31,6 +31,9 @@ async function deleteFileFromBlob(url) {
 const uploadedFilesMap = new Map();
 const FILES_CLEANUP_TIMEOUT = 24 * 60 * 60 * 1000; // 24 hours
 
+// Cache completed results by requestId so they can be re-fetched by results.html
+const resultsCache = new Map();
+
 // Convert PDF pages to images using mupdf
 async function convertPdfToImages(pdfBuffer) {
   try {
@@ -437,6 +440,20 @@ app.get('/api/results/:requestId', async (req, res) => {
       });
     }
 
+    // Serve from cache if already completed
+    if (resultsCache.has(requestId)) {
+      console.log(`Serving cached result for requestId: ${requestId}`);
+      return res.json({
+        success: true,
+        status: 'success',
+        data: {
+          output: {
+            result: resultsCache.get(requestId)
+          }
+        }
+      });
+    }
+
     console.log(`Checking status for requestId: ${requestId}`);
 
     // Prepare Lamatic API request to check status
@@ -517,6 +534,9 @@ app.get('/api/results/:requestId', async (req, res) => {
                              checkStatusResult;
 
         console.log('Extracted actualResult keys:', Object.keys(actualResult || {}));
+
+        // Cache result so results.html can re-fetch it
+        resultsCache.set(requestId, actualResult);
 
         // Delete uploaded files from Vercel Blob after processing
         setImmediate(async () => {
