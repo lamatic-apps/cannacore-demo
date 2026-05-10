@@ -252,18 +252,9 @@ app.post('/api/finalize-chunks', async (req, res) => {
       console.log(`Image uploaded: ${imagePath}`);
 
     } else if (fileType === 'pdfs') {
-      // Upload COA PDF directly to Vercel Blob (no conversion)
-      console.log('Uploading COA PDF directly...');
-      const uniqueId = crypto.randomUUID();
-      const pdfPath = `pdfs/${uniqueId}-${metadata.fileName}`;
-
-      const blob = await put(pdfPath, fileBuffer, {
-        access: 'public',
-        contentType: 'application/pdf'
-      });
-
-      uploadedUrls = [blob.url];
-      console.log(`COA PDF uploaded: ${pdfPath} (${(fileBuffer.length / 1024).toFixed(0)} KB)`);
+      // Convert COA PDF to images
+      console.log('Converting COA PDF to images...');
+      uploadedUrls = await convertPdfToImages(fileBuffer);
 
     } else if (fileType === 'labels-pdfs') {
       // Convert labels PDF to images
@@ -641,10 +632,6 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
     }
 
     // Convert PDF to images and upload them
-    const uniquePdfSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const pdfFilename = `pdf-${uniquePdfSuffix}.pdf`;
-    const pdfPath = `pdfs/${pdfFilename}`;
-    
     console.log('Converting PDF to images...');
     const pdfPageUrls = await convertPdfToImages(pdf.buffer);
     
