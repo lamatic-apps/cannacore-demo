@@ -12,6 +12,131 @@ body {
     color: #1a1a1a;
 }
 
+/* ── TAB NAV ──────────────────────────────────────────────── */
+.tab-nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+    border-bottom: 2px solid #e0e0e0;
+    max-width: 1000px;
+    margin: 0 auto 0;
+}
+
+.tab-btn {
+    padding: 12px 28px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+}
+
+.tab-btn:hover {
+    color: #1a1a1a;
+}
+
+.tab-btn.active {
+    color: #000;
+    border-bottom-color: #000;
+    font-weight: 700;
+}
+
+/* ── RULES PAGE ───────────────────────────────────────────── */
+.rules-page-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 30px;
+    color: #1a1a1a;
+}
+
+.rules-jurisdiction {
+    margin-bottom: 40px;
+}
+
+.rules-jurisdiction-heading {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    padding: 12px 0;
+    border-bottom: 2px solid #000;
+    margin-bottom: 0;
+    text-transform: capitalize;
+}
+
+.rules-table {
+    width: 100%;
+    border: 1px solid #e0e0e0;
+    border-radius: 0 0 8px 8px;
+    overflow: hidden;
+}
+
+.rules-row {
+    display: grid;
+    grid-template-columns: 110px 220px 1fr;
+    border-bottom: 1px solid #e8e8e8;
+}
+
+.rules-row:last-child {
+    border-bottom: none;
+}
+
+.rules-row.rules-header {
+    background: #f5f5f5;
+}
+
+.rules-cell {
+    padding: 14px 16px;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.rules-header .rules-cell {
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #555;
+}
+
+.rules-row:not(.rules-header):hover {
+    background: #fafafa;
+}
+
+.rules-scope-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.rules-cell-ref a {
+    color: #2563eb;
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.rules-cell-ref a:hover {
+    text-decoration: underline;
+}
+
+.rules-definition {
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: #666;
+    font-style: italic;
+    line-height: 1.5;
+}
+
 .results-card {
     background: white;
     padding: 20px;

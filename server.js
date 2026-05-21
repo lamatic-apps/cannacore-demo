@@ -976,6 +976,56 @@ app.post('/api/download-report', async (req, res) => {
   }
 });
 
+// Rules endpoint
+app.get('/api/rules', async (req, res) => {
+  try {
+    const lamatic_api_key = process.env.LAMATIC_API_KEY;
+    if (!lamatic_api_key) {
+      return res.status(500).json({ error: 'LAMATIC_API_KEY is not configured' });
+    }
+
+    const query = `
+      query ExecuteWorkflow(
+        $workflowId: String!
+        $sampleInput: String
+      ) {
+        executeWorkflow(
+          workflowId: $workflowId
+          payload: { sampleInput: $sampleInput }
+        ) {
+          status
+          result
+        }
+      }`;
+
+    const variables = {
+      workflowId: 'fc663fe4-6d7d-493f-b64a-b7e8d0159712',
+      sampleInput: 'sampleInput'
+    };
+
+    const response = await axios({
+      method: 'POST',
+      url: 'https://cannacore824-cannacore872.lamatic.dev/graphql',
+      headers: {
+        Authorization: `Bearer ${lamatic_api_key}`,
+        'Content-Type': 'application/json',
+        'x-project-id': 'd00a8d95-9196-45f3-8488-10ead508b5f5',
+      },
+      data: { query, variables }
+    });
+
+    const rules = response.data?.data?.executeWorkflow?.result?.rules;
+    if (!rules) {
+      return res.status(500).json({ error: 'Unexpected response format from rules API' });
+    }
+
+    res.json({ rules });
+  } catch (error) {
+    console.error('[RULES] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Clean up old entries from uploadedFilesMap periodically
 setInterval(() => {
   const now = Date.now();

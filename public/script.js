@@ -924,6 +924,111 @@ function renderComplianceItems(container, result, selectedJurisdiction) {
     });
 }
 
+// ── TAB NAVIGATION ──────────────────────────────────────────────────────────
+
+let rulesLoaded = false;
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const tab = btn.dataset.tab;
+
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+        document.getElementById(`tab-${tab}`).style.display = 'block';
+
+        if (tab === 'rules' && !rulesLoaded) {
+            loadRules();
+        }
+    });
+});
+
+async function loadRules() {
+    const loading = document.getElementById('rulesLoading');
+    const errorEl = document.getElementById('rulesError');
+    const content = document.getElementById('rulesContent');
+
+    loading.style.display = 'flex';
+    errorEl.style.display = 'none';
+    content.innerHTML = '';
+
+    try {
+        const res = await fetch('/api/rules');
+        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error);
+        renderRules(data.rules);
+        rulesLoaded = true;
+    } catch (err) {
+        errorEl.style.display = 'block';
+        errorEl.innerHTML = `<p>Failed to load rules: ${escapeHtml(err.message)}</p>`;
+    } finally {
+        loading.style.display = 'none';
+    }
+}
+
+function renderRules(rules) {
+    const content = document.getElementById('rulesContent');
+    content.innerHTML = '';
+
+    const title = document.createElement('h1');
+    title.className = 'rules-page-title';
+    title.textContent = 'Compliance Rules';
+    content.appendChild(title);
+
+    const SCOPE_COLORS = { label: '#2563eb', coa: '#7c3aed', packaging: '#0891b2' };
+
+    Object.entries(rules).forEach(([jurisdiction, items]) => {
+        if (!items || items.length === 0) return;
+
+        const section = document.createElement('div');
+        section.className = 'rules-jurisdiction';
+
+        const heading = document.createElement('h2');
+        heading.className = 'rules-jurisdiction-heading';
+        heading.textContent = jurisdiction.charAt(0).toUpperCase() + jurisdiction.slice(1);
+        section.appendChild(heading);
+
+        const table = document.createElement('div');
+        table.className = 'rules-table';
+
+        // Header row
+        table.innerHTML = `
+            <div class="rules-row rules-header">
+                <div class="rules-cell rules-cell-scope">Scope</div>
+                <div class="rules-cell rules-cell-ref">Reference</div>
+                <div class="rules-cell rules-cell-rule">Rule</div>
+            </div>`;
+
+        items.forEach(item => {
+            const scope = (item.compliance_scope || '').toLowerCase();
+            const color = SCOPE_COLORS[scope] || '#374151';
+            const refHtml = item.url
+                ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.ref || '')}</a>`
+                : escapeHtml(item.ref || '');
+
+            const row = document.createElement('div');
+            row.className = 'rules-row';
+            row.innerHTML = `
+                <div class="rules-cell rules-cell-scope">
+                    <span class="rules-scope-badge" style="background:${color}20;color:${color};border-color:${color}40">
+                        ${escapeHtml(item.compliance_scope || '')}
+                    </span>
+                </div>
+                <div class="rules-cell rules-cell-ref">${refHtml}</div>
+                <div class="rules-cell rules-cell-rule">
+                    ${escapeHtml(item.rule || '')}
+                    ${item.definition_context ? `<p class="rules-definition">${escapeHtml(item.definition_context)}</p>` : ''}
+                </div>`;
+            table.appendChild(row);
+        });
+
+        section.appendChild(table);
+        content.appendChild(section);
+    });
+}
+
 async function handleDownload(innerSection, btn) {
     btn.disabled = true;
     btn.textContent = 'GENERATING WORD DOC...';
