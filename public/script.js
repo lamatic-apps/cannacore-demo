@@ -999,14 +999,15 @@ function renderRules(rules) {
                 <div class="rules-cell rules-cell-scope">Scope</div>
                 <div class="rules-cell rules-cell-ref">Reference</div>
                 <div class="rules-cell rules-cell-rule">Rule</div>
+                <div class="rules-cell rules-cell-url">URL</div>
             </div>`;
 
         items.forEach(item => {
             const scope = (item.compliance_scope || '').toLowerCase();
             const color = SCOPE_COLORS[scope] || '#374151';
-            const refHtml = item.url
-                ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.ref || '')}</a>`
-                : escapeHtml(item.ref || '');
+            const urlHtml = item.url
+                ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">${escapeHtml(item.url)}</a>`
+                : '—';
 
             const row = document.createElement('div');
             row.className = 'rules-row';
@@ -1016,11 +1017,12 @@ function renderRules(rules) {
                         ${escapeHtml(item.compliance_scope || '')}
                     </span>
                 </div>
-                <div class="rules-cell rules-cell-ref">${refHtml}</div>
+                <div class="rules-cell rules-cell-ref">${escapeHtml(item.ref || '')}</div>
                 <div class="rules-cell rules-cell-rule">
                     ${escapeHtml(item.rule || '')}
                     ${item.definition_context ? `<p class="rules-definition">${escapeHtml(item.definition_context)}</p>` : ''}
-                </div>`;
+                </div>
+                <div class="rules-cell rules-cell-url">${urlHtml}</div>`;
             table.appendChild(row);
         });
 
