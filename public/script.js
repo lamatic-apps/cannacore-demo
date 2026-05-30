@@ -735,7 +735,7 @@ function displayCOA(coaData, targetEl) {
         }
         
         card.innerHTML = `
-            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref, item.url)}</p>
             <p style="color:${statusColor};font-weight:bold; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">${complianceStatus}</p>
             <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Rule Summary:</strong> ${escapeHtml(item.rule_summary || "None provided")}</p>
             <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Evidence:</strong> ${escapeHtml(item.evidence || "None provided")}</p>
@@ -796,7 +796,7 @@ function displayLabels(labelsData, targetEl) {
             .replace(/\bcoa not available\b/gi, "label not available");
 
         card.innerHTML = `
-            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref)}</p>
+            <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>${serialNumber}. Ref:</strong> ${getRefWithHyperlink(item.ref, item.url)}</p>
             <p style="color:${statusColor};font-weight:bold; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;">${complianceStatus}</p>
             <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Rule Summary:</strong> ${escapeHtml(labelRuleSummary)}</p>
             <p style="color:black; width: 100%; margin: 0 0 12px 0; padding: 0; box-sizing: border-box; word-wrap: break-word; overflow-wrap: break-word;"><strong>Evidence:</strong> ${escapeHtml(item.evidence || "None provided")}</p>
@@ -809,28 +809,30 @@ function displayLabels(labelsData, targetEl) {
     console.log('Labels section appended with', validItemCount, 'valid items');
 }
 
-function getRefWithHyperlink(ref) {
+function getRefWithHyperlink(ref, directUrl) {
     if (!ref || ref === "N/A") {
         return "N/A";
     }
-    
+
     const refStr = String(ref).trim();
-    
+    const linkStyle = 'color: #007bff; text-decoration: underline;';
+
+    // Use the URL provided directly by the API if present
+    if (directUrl && directUrl.trim()) {
+        return `<a href="${escapeHtml(directUrl.trim())}" target="_blank" style="${linkStyle}">${escapeHtml(ref)}</a>`;
+    }
+
     // Handle split refs like "101.5/ 5K-4.034(6)(i)-1"
     if (refStr.includes("/") && refStr.includes("101.5") && refStr.includes("5K-4.034")) {
         const parts = refStr.split("/").map(p => p.trim());
         if (parts.length === 2) {
-            const firstPart = parts[0];
-            const secondPart = parts[1];
-            
             const firstUrl = "https://www.ecfr.gov/current/title-21/chapter-I/subchapter-B/part-101/subpart-A/section-101.5";
             const secondUrl = "https://www.law.cornell.edu/regulations/florida/Fla-Admin-Code-Ann-R-5K-4-034";
-            
-            return `<a href="${firstUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">${firstPart}</a> / <a href="${secondUrl}" target="_blank" style="color: #007bff; text-decoration: underline;">${secondPart}</a>`;
+            return `<a href="${firstUrl}" target="_blank" style="${linkStyle}">${parts[0]}</a> / <a href="${secondUrl}" target="_blank" style="${linkStyle}">${parts[1]}</a>`;
         }
     }
-    
-    // Fallback: Map known reference patterns to URLs for single refs
+
+    // Fallback: map known reference patterns to URLs
     let url = null;
     if (refStr.includes("581.217")) {
         url = "https://www.leg.state.fl.us/Statutes/index.cfm?App_mode=Display_Statute&URL=0500-0599/0581/Sections/0581.217.html";
@@ -843,12 +845,12 @@ function getRefWithHyperlink(ref) {
     } else if (refStr.includes("101.9")) {
         url = "https://www.ecfr.gov/current/title-21/part-101#p-101.9(j)(15)(iii)";
     }
-    
+
     if (url) {
-        return `<a href="${url}" target="_blank" style="color: #007bff; text-decoration: underline;">${ref}</a>`;
+        return `<a href="${url}" target="_blank" style="${linkStyle}">${escapeHtml(ref)}</a>`;
     }
-    
-    return ref;
+
+    return escapeHtml(ref);
 }
 
 function showError(msg) {
