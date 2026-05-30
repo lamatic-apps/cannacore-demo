@@ -87,6 +87,44 @@ labelsPdfUploadArea.addEventListener('drop', e => {
     if (files.length > 0) handleLabelsPdfFile(files[0]);
 });
 
+// CONTROLLED SUBSTANCE
+let selectedSubstance = 'hemp';
+
+document.querySelectorAll('input[name="substance"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+        selectedSubstance = radio.value;
+        applySubstanceFilter();
+    });
+});
+
+function applySubstanceFilter() {
+    const allOptions = document.querySelectorAll('.jurisdiction-option');
+    if (selectedSubstance === 'kratom') {
+        // Show only Florida, auto-select it, uncheck and hide others
+        allOptions.forEach(opt => {
+            const cb = opt.querySelector('.jurisdiction-checkbox');
+            if (cb.value === 'Florida') {
+                opt.style.display = '';
+                cb.checked = true;
+            } else {
+                opt.style.display = 'none';
+                cb.checked = false;
+            }
+        });
+    } else {
+        // Restore all options, clear selections
+        allOptions.forEach(opt => {
+            opt.style.display = '';
+            opt.querySelector('.jurisdiction-checkbox').checked = false;
+        });
+    }
+    selectedJurisdictions = Array.from(document.querySelectorAll('.jurisdiction-checkbox'))
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+    updateJurisdictionDisplay();
+    updateSubmitButton();
+}
+
 // JURISDICTION SELECTION
 jurisdictionDropdownBtn.addEventListener('click', e => {
     e.preventDefault();
@@ -501,6 +539,7 @@ uploadForm.addEventListener('submit', async e => {
                 imageurl: imageUrls.length > 0 ? imageUrls : ["not_provided"],
                 coaurl: coaUrls.length > 0 ? coaUrls : ["not provided"],
                 jurisdictions: selectedJurisdictions,
+                substance: selectedSubstance,
                 date: new Date().toLocaleDateString(),
                 time: new Date().toLocaleTimeString(),
                 company_name: 'N/A',

@@ -281,7 +281,7 @@ app.post('/api/finalize-chunks', async (req, res) => {
 // Compliance check endpoint - accepts pre-uploaded URLs
 app.post('/api/check-compliance-urls', apiLimiter, async (req, res) => {
   try {
-    const { imageurl, coaurl, jurisdictions } = req.body;
+    const { imageurl, coaurl, jurisdictions, substance } = req.body;
 
     // Validate inputs
     if (!imageurl || !Array.isArray(imageurl) || imageurl.length === 0) {
@@ -294,11 +294,14 @@ app.post('/api/check-compliance-urls', apiLimiter, async (req, res) => {
     console.log('Image URLs:', imageurl);
     console.log('COA URLs:', coaurl);
     console.log('Jurisdictions:', jurisdictions);
+    console.log('Substance:', substance);
 
     // Prepare Lamatic API request
     const lamatic_api_key = process.env.LAMATIC_API_KEY;
     const lamatic_api_url = process.env.LAMATIC_API_URL;
-    const lamatic_workflow_id = process.env.LAMATIC_WORKFLOW_ID;
+    const lamatic_workflow_id = substance === 'kratom'
+      ? '90ee9aa4-f433-47e8-bb4b-84ee536b1dc1'
+      : process.env.LAMATIC_WORKFLOW_ID;
     const lamatic_project_id = process.env.LAMATIC_PROJECT_ID;
 
     if (!lamatic_api_key) {
