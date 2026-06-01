@@ -13,6 +13,15 @@ const { Document, Packer, Paragraph, TextRun } = require('docx');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Wrap a Vercel Blob public URL in our proxy so Gemini/Lamatic never hits
+// the blob CDN directly (which triggers 403s after repeated AI fetches).
+function toProxyUrl(blobUrl) {
+  const base = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : `http://localhost:${PORT}`;
+  return `${base}/api/blob-proxy?url=${encodeURIComponent(blobUrl)}`;
+}
+
 // Trust proxy for Vercel/reverse proxies (required for express-rate-limit)
 app.set('trust proxy', 1);
 
@@ -74,7 +83,7 @@ async function convertPdfToImages(pdfBuffer) {
           contentType: 'image/png'
         });
 
-        imageUrls.push(blob.url);
+        imageUrls.push(toProxyUrl(blob.url));
         console.log(`Page ${pageNum + 1}/${pageCount} uploaded: ${imageFilename} (${(imageBuffer.length / 1024).toFixed(0)} KB)`);
       } catch (pageError) {
         console.error(`Error converting page ${pageNum + 1}:`, pageError);
@@ -248,7 +257,7 @@ app.post('/api/finalize-chunks', async (req, res) => {
         contentType: 'image/*'
       });
 
-      uploadedUrls = [blob.url];
+      uploadedUrls = [toProxyUrl(blob.url)];
       console.log(`Image uploaded: ${imagePath}`);
 
     } else if (fileType === 'pdfs') {
@@ -630,7 +639,7 @@ app.post('/api/check-compliance', apiLimiter, upload.fields([
         contentType: image.mimetype
       });
       
-      imageUrls.push(blob.url);
+      imageUrls.push(toProxyUrl(blob.url));
       uploadedImagePaths.push(blob.url);
     }
 
@@ -1025,6 +1034,38 @@ app.get('/api/rules', async (req, res) => {
     res.json({ rules });
   } catch (error) {
     console.error('[RULES] Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Blob proxy — fetches Vercel Blob content using the token so Gemini/Lamatic
+// never hits the public CDN directly (which causes 403s under AI load).
+app.get('/api/blob-proxy', async (req, res) => {
+  const { url } = req.query;
+
+  if (!url || !url.startsWith('https://') || !url.includes('.blob.vercel-storage.com')) {
+    return res.status(400).json({ error: 'Invalid blob URL' });
+  }
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`
+      }
+    });
+
+    if (!response.ok) {
+      console.error(`[BLOB-PROXY] ${response.status} for ${url}`);
+      return res.status(response.status).send('Failed to fetch blob');
+    }
+
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'image/png');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+
+    const { Readable } = require('stream');
+    Readable.fromWeb(response.body).pipe(res);
+  } catch (error) {
+    console.error('[BLOB-PROXY] Error:', error.message);
     res.status(500).json({ error: error.message });
   }
 });
